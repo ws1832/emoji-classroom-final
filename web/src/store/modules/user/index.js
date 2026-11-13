@@ -3,7 +3,7 @@ import { resetRouter } from '@/router'
 import { useTagsStore, usePermissionStore } from '@/store'
 import { removeToken, toLogin } from '@/utils'
 import api from '@/api'
-import { getBusinessRoles, getDefaultPath } from '@/utils/auth/business'
+import { getBusinessRoles, getDefaultPath, isAdministrator } from '@/utils/auth/business'
 import { captureSession, assertCurrentSession, invalidateSession } from '@/utils/auth/session'
 
 export const useUserStore = defineStore('user', {
@@ -38,6 +38,9 @@ export const useUserStore = defineStore('user', {
     isSuperUser() {
       return this.userInfo?.is_superuser
     },
+    isAdministrator() {
+      return isAdministrator(this.userInfo)
+    },
     isActive() {
       return this.userInfo?.is_active
     },
@@ -48,8 +51,8 @@ export const useUserStore = defineStore('user', {
       const { data } = await api.getUserInfo()
       assertCurrentSession(session)
       if (!data?.id || data.is_active === false) throw new Error('USER_INFO_UNAVAILABLE')
-      const { id, username, email, avatar, roles, role_codes, is_superuser, is_active } = data
-      this.userInfo = { id, username, email, avatar, roles, role_codes, is_superuser, is_active }
+      const { id, username, email, avatar, roles, role_codes, is_superuser, is_active, is_admin } = data
+      this.userInfo = { id, username, email, avatar, roles, role_codes, is_superuser, is_active, is_admin }
       if (!this.businessRoles.includes(this.activeBusinessRole)) this.activeBusinessRole = ''
       return this.userInfo
     },

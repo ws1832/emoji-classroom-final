@@ -5,7 +5,12 @@ export const BUSINESS_HOMES = {
   TEACHER: '/teacher/classroom',
 }
 
+export function isAdministrator(user = {}) {
+  return user.is_admin === true || user.is_superuser === true
+}
+
 export function getBusinessRoles(user = {}) {
+  if (isAdministrator(user)) return []
   if (!Array.isArray(user.role_codes)) return []
   return [
     ...new Set(
@@ -17,8 +22,8 @@ export function getBusinessRoles(user = {}) {
 }
 
 export function getDefaultPath(user = {}, activeRole = '') {
+  if (isAdministrator(user)) return '/classroom/dashboard'
   if (getBusinessRoles(user).includes(activeRole)) return BUSINESS_HOMES[activeRole]
-  if (user.is_superuser === true) return '/classroom/dashboard'
   const firstRole = getBusinessRoles(user)[0]
   return firstRole ? BUSINESS_HOMES[firstRole] : '/account'
 }

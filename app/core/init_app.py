@@ -6,7 +6,7 @@ from tortoise.expressions import Q
 
 from app.api import api_router
 from app.controllers.api import api_controller
-from app.controllers.user import UserCreate, user_controller
+from app.controllers.user import user_controller
 from app.core.exceptions import (
     DoesNotExist,
     DoesNotExistHandle,
@@ -19,12 +19,13 @@ from app.core.exceptions import (
     ResponseValidationError,
     ResponseValidationHandle,
 )
-from app.log import logger
 from app.models.admin import Api, Menu, Role
 from app.schemas.menus import MenuType
 from app.settings.config import settings
+from app.utils.password import get_password_hash
 
 from .middlewares import BackGroundTaskMiddleware, HttpAuditLogMiddleware
+from .ai_boundary import AIBoundaryMiddleware
 
 
 def make_middlewares():
@@ -37,6 +38,7 @@ def make_middlewares():
             allow_headers=settings.CORS_ALLOW_HEADERS,
         ),
         Middleware(BackGroundTaskMiddleware),
+        Middleware(AIBoundaryMiddleware),
         Middleware(
             HttpAuditLogMiddleware,
             methods=["GET", "POST", "PUT", "DELETE"],
@@ -46,6 +48,7 @@ def make_middlewares():
                 "/api/v1/base/update_password",
                 "/docs",
                 "/openapi.json",
+                "^/healthz$",
             ],
         ),
     ]
@@ -67,68 +70,50 @@ def register_routers(app: FastAPI, prefix: str = "/api"):
 async def init_superuser():
     user = await user_controller.model.exists()
     if not user:
-        await user_controller.create_user(
-            UserCreate(
-                username="admin",
-                email="admin@admin.com",
-                password="123456",
-                is_active=True,
-                is_superuser=True,
-            )
+        await user_controller.model.create(
+            username="admin",
+            email="admin@admin.com",
+            password=get_password_hash(settings.BOOTSTRAP_ADMIN_PASSWORD),
+            is_active=True,
+            is_superuser=True,
         )
 
 
 async def init_menus():
-    menus = await Menu.exists()
-    if not menus:
-        parent_menu = await Menu.create(
-            menu_type=MenuType.CATALOG,
-            name="系统管理",
-            path="/system",
-            order=1,
-            parent_id=0,
-            icon="carbon:gui-management",
-            is_hidden=False,
-            component="Layout",
-            keepalive=False,
-            redirect="/system/user",
+    """补齐系统菜单；已有课堂或自定义菜单不能阻止核心菜单初始化。"""
+    parent_menu, _ = await Menu.get_or_create(
+        path="/system",
+        parent_id=0,
+        defaults={
+            "menu_type": MenuType.CATALOG,
+            "name": "系统管理",
+            "order": 1,
+            "icon": "carbon:gui-management",
+            "is_hidden": False,
+            "component": "Layout",
+            "keepalive": False,
+            "redirect": "/system/user",
+        },
+    )
+    children = [
+        ("用户管理", "user", "material-symbols:person-outline-rounded", 1),
+        ("角色管理", "role", "carbon:user-role", 2),
+        ("审计日志", "auditlog", "ph:clipboard-text-bold", 3),
+    ]
+    for name, path, icon, order in children:
+        await Menu.get_or_create(
+            path=path,
+            parent_id=parent_menu.id,
+            defaults={
+                "menu_type": MenuType.MENU,
+                "name": name,
+                "order": order,
+                "icon": icon,
+                "is_hidden": False,
+                "component": f"/system/{path}",
+                "keepalive": False,
+            },
         )
-        children_menu = [
-            Menu(
-                menu_type=MenuType.MENU,
-                name="用户管理",
-                path="user",
-                order=1,
-                parent_id=parent_menu.id,
-                icon="material-symbols:person-outline-rounded",
-                is_hidden=False,
-                component="/system/user",
-                keepalive=False,
-            ),
-            Menu(
-                menu_type=MenuType.MENU,
-                name="角色管理",
-                path="role",
-                order=2,
-                parent_id=parent_menu.id,
-                icon="carbon:user-role",
-                is_hidden=False,
-                component="/system/role",
-                keepalive=False,
-            ),
-            Menu(
-                menu_type=MenuType.MENU,
-                name="审计日志",
-                path="auditlog",
-                order=3,
-                parent_id=parent_menu.id,
-                icon="ph:clipboard-text-bold",
-                is_hidden=False,
-                component="/system/auditlog",
-                keepalive=False,
-            ),
-        ]
-        await Menu.bulk_create(children_menu)
 
 
 async def init_classroom_menus():
@@ -170,22 +155,30 @@ async def init_classroom_menus():
                 keepalive=False,
             )
 
+
 async def init_apis():
     apis = await api_controller.model.exists()
     if not apis:
         await api_controller.refresh_api()
+    # 旧库只补齐 D 控制 API，不删除/重置他人自定义权限。
+    from app import app
+    from fastapi.routing import APIRoute
+
+    for route in app.routes:
+        if isinstance(route, APIRoute) and "AI控制" in route.tags:
+            for method in route.methods:
+                api, _ = await Api.get_or_create(
+                    method=method, path=route.path, defaults={"summary": route.summary, "tags": "AI控制"}
+                )
+                if api.tags != "AI控制" or api.summary != route.summary:
+                    api.tags, api.summary = "AI控制", route.summary
+                    await api.save()
 
 
 async def init_db():
     command = Command(tortoise_config=settings.TORTOISE_ORM)
-    try:
-        await command.init_db(safe=True)
-    except FileExistsError:
-        pass
-
     await command.init()
-    # 只应用 migrations 目录中已有的迁移，不在启动时自动生成新迁移文件；
-    # 全新库会按迁移 0→1→… 依次建表，已有库只执行尚未应用的迁移。
+    # 永不生成迁移；唯一启动路径是仓库已提交的 0→1→… SQL。
     await command.upgrade(run_in_transaction=True)
 
 
@@ -228,12 +221,23 @@ async def init_roles():
 
     # 教师：基础模块 API + 实时课堂看板与多维统计菜单。
     await _add_missing_apis(teacher_role, basic_apis)
+    ai_teacher_apis = await Api.filter(tags="AI控制").exclude(path__contains="credentials")
+    ai_teacher_apis = [api for api in ai_teacher_apis if api.method == "GET"]
+    await _add_missing_apis(teacher_role, ai_teacher_apis)
+    # 只撤销本模块旧模板的管理权限，保留非 AI 自定义授权。
+    old_ai_writes = await teacher_role.apis.filter(tags="AI控制").exclude(method="GET")
+    if old_ai_writes:
+        await teacher_role.apis.remove(*old_ai_writes)
     classroom_menu = await Menu.get_or_none(path="/classroom", parent_id=0)
     if classroom_menu is not None:
         teacher_menus = [classroom_menu] + await Menu.filter(
             parent_id=classroom_menu.id, path__in=["dashboard", "statistics"]
         )
         await _add_missing_menus(teacher_role, teacher_menus)
+        # 迁移旧教师授权：AI服务身份/课堂采集配置是管理员功能。
+        admin_ai_menus = await Menu.filter(parent_id=classroom_menu.id, path__in=["ai-devices", "ai-jobs"])
+        if admin_ai_menus:
+            await teacher_role.menus.remove(*admin_ai_menus)
 
     # 学生：仅基础模块 API；学生入口由前端按 role_codes 渲染，无需后端菜单。
     await _add_missing_apis(student_role, basic_apis)
@@ -244,5 +248,22 @@ async def init_data():
     await init_superuser()
     await init_menus()
     await init_classroom_menus()
+    parent = await Menu.get(path="/classroom", parent_id=0)
+    for name, path in [("AI服务身份", "ai-devices"), ("课堂采集管理", "ai-jobs")]:
+        menu, _ = await Menu.get_or_create(
+            parent_id=parent.id,
+            path=path,
+            defaults={
+                "name": name,
+                "menu_type": MenuType.MENU,
+                "component": f"/classroom/{path}",
+                "icon": "carbon:camera",
+                "order": 6,
+                "keepalive": False,
+            },
+        )
+        if menu.name != name:
+            menu.name = name
+            await menu.save()
     await init_apis()
     await init_roles()

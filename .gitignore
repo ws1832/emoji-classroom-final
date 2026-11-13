@@ -6,9 +6,6 @@ venv/
 .vscode
 .ruff_cache/
 .pytest_cache/
-migrations/
-.env
-
 # Local environment settings may contain passwords and tokens.
 .env
 .env.*
@@ -25,3 +22,17 @@ db.sqlite3-wal
 
 .DS_Store
 ._.DS_Store
+
+# AI runtime artifacts: source/manifests are tracked, weights and payloads are not.
+/ai-service/models/*.onnx
+/ai-service/models/.deepface/
+/ai-service/outbox/
+/ai-service/outputs/
+*.egg-info/
+/ai-service/build/
+/ai-service/dist/
+/ai-service/pytest-cache-files-*/
+
+# Personal plans, tools, credentials and acceptance artifacts are not source.
+/.local/
+/tools/

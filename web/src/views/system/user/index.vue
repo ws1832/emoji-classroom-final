@@ -1,17 +1,18 @@
 <script setup>
-import { h, onMounted, ref, resolveDirective, withDirectives } from 'vue'
+import { h, onBeforeUnmount, onMounted, ref, resolveDirective, watch, withDirectives } from 'vue'
 import {
   NButton,
   NCheckbox,
   NCheckboxGroup,
   NForm,
   NFormItem,
-  NImage,
   NInput,
   NSpace,
   NSwitch,
   NTag,
   NPopconfirm,
+  NModal,
+  NAlert,
 } from 'naive-ui'
 
 import CommonPage from '@/components/page/CommonPage.vue'
@@ -25,12 +26,22 @@ import { useCRUD } from '@/composables'
 import api from '@/api'
 import TheIcon from '@/components/icon/TheIcon.vue'
 import { useUserStore } from '@/store'
+import { captureSession, isCurrentSession } from '@/utils/auth/session'
 
 defineOptions({ name: '用户管理' })
 
 const $table = ref(null)
 const queryItems = ref({})
 const vPermission = resolveDirective('permission')
+const temporaryPassword = ref('')
+const passwordVisible = ref(false)
+let disposed = false
+onBeforeUnmount(() => {
+  disposed = true
+  temporaryPassword.value = ''
+  passwordVisible.value = false
+  modalForm.value = {}
+})
 
 const {
   modalVisible,
@@ -53,10 +64,16 @@ const {
 })
 
 const roleOption = ref([])
+watch(modalVisible, (visible) => {
+  if (!visible) {
+    delete modalForm.value.password
+    delete modalForm.value.confirmPassword
+  }
+})
 
 onMounted(() => {
   $table.value?.handleSearch()
-  api.getRoleList({ page: 1, page_size: 9999 }).then((res) => (roleOption.value = res.data))
+  api.getRoleList({ page: 1, page_size: 1000 }).then((res) => (roleOption.value = res.data))
 })
 
 const columns = [
@@ -207,9 +224,13 @@ const columns = [
           NPopconfirm,
           {
             onPositiveClick: async () => {
+              const session = captureSession()
               try {
-                await api.resetPassword({ user_id: row.id });
-                $message.success('密码已成功重置为123456');
+                const result = await api.resetPassword({ user_id: row.id });
+                if (disposed || !isCurrentSession(session)) return
+                temporaryPassword.value = result.data.temporary_password
+                passwordVisible.value = true
+                $message.success('已生成随机密码，原登录与摄像头授权失效');
                 await $table.value?.handleSearch();
               } catch (error) {
                 $message.error('重置密码失败: ' + error.message);
@@ -234,7 +255,7 @@ const columns = [
                 ),
                 [[vPermission, 'post/api/v1/user/reset_password']]
               ),
-            default: () => h('div', {}, '确定重置用户密码为123456吗?'),
+            default: () => h('div', {}, '确定生成随机密码并撤销原登录及摄像头授权吗?'),
           }
         ),
       ]
@@ -252,7 +273,6 @@ async function handleUpdateDisable(row) {
   }
   row.publishing = true
   row.is_active = row.is_active === false ? true : false
-  row.publishing = false
   const role_ids = []
   row.roles.forEach((e) => {
     role_ids.push(e.id)
@@ -302,6 +322,11 @@ const validateAddUser = {
       message: '请输入密码',
       trigger: ['input', 'blur', 'change'],
     },
+    {
+      validator: (_rule, value) => /^(?=.*[A-Za-z])(?=.*\d)\S{8,128}$/.test(value || ''),
+      message: '密码须为 8~128 位，同时包含字母和数字且不含空白',
+      trigger: ['input', 'blur'],
+    },
   ],
   confirmPassword: [
     {
@@ -320,7 +345,7 @@ const validateAddUser = {
       },
     },
   ],
-  roles: [
+  role_ids: [
     {
       type: 'array',
       required: true,
@@ -418,7 +443,7 @@ const validateAddUser = {
                 </NSpace>
               </NCheckboxGroup>
             </NFormItem>
-            <NFormItem label="超级用户" path="is_superuser">
+            <NFormItem v-if="useUserStore().isSuperUser" label="超级用户" path="is_superuser">
               <NSwitch
                 v-model:value="modalForm.is_superuser"
                 size="small"
@@ -436,5 +461,11 @@ const validateAddUser = {
             </NFormItem>
           </NForm>
         </CrudModal>
+        <NModal v-model:show="passwordVisible" preset="card" title="一次性随机密码"
+                style="width:min(560px,95vw)" @update:show="temporaryPassword = ''">
+          <NAlert type="info">仅此次显示。交付用户后请其尽快修改；关闭后不能重读。</NAlert>
+          <pre style="white-space:pre-wrap;overflow-wrap:anywhere">{{ temporaryPassword }}</pre>
+          <NButton @click="passwordVisible = false; temporaryPassword = ''">已交付，关闭并清除</NButton>
+        </NModal>
   </CommonPage>
 </template>

@@ -1,43 +1,47 @@
-from app.utils.time import format_beijing
-"""课堂情绪统计服务。
+"""同一权限范围内数据库聚合；不加载全部 AI 记录到 Python。"""
 
-负责把 EmojiRecord 按课程、班级、时间段等维度聚合成管理端统计图表
-所需的数据结构。本服务只做聚合与格式化，权限过滤由调用方在传入
-查询集时完成。
-"""
-
-from collections import Counter
 from datetime import datetime
 
-from tortoise.queryset import QuerySet
+from tortoise.functions import Count
+from tortoise.expressions import RawSQL
 
-from app.models.classroom import EmojiRecord
-
-
-async def _records(
-    actor_id: int,
-    is_superuser: bool,
-    course_id: int | None = None,
-    class_name: str | None = None,
-    from_time: datetime | None = None,
-    to_time: datetime | None = None,
-) -> list[EmojiRecord]:
-    query: QuerySet = EmojiRecord.all().select_related("session__course")
-    if not is_superuser:
-        query = query.filter(session__course__teacher_id=actor_id)
-    if course_id is not None:
-        query = query.filter(session__course_id=course_id)
-    if class_name:
-        query = query.filter(session__class_name=class_name)
-    if from_time is not None:
-        query = query.filter(timestamp__gte=from_time)
-    if to_time is not None:
-        query = query.filter(timestamp__lte=to_time)
-    return await query.order_by("timestamp")
+from app.models.classroom import ClassSession, EmojiRecord
+from app.services.time_bucket import TimeBucket
+from app.utils.time import format_beijing
 
 
-def _ratio(count: int, total: int) -> float:
+def _ratio(count, total):
     return round(count * 100 / total, 2) if total else 0.0
+
+
+async def _groups(query, *fields):
+    return (
+        await query.annotate(count=Count("id")).group_by(*fields).order_by("-count", *fields).values(*fields, "count")
+    )
+
+
+async def _buckets(query, precision):
+    dialect = query.model._meta.db.capabilities.dialect
+    return await (
+        query.annotate(bucket=TimeBucket("timestamp", precision, dialect), count=Count("id"))
+        .group_by("bucket")
+        .order_by("bucket")
+        .values("bucket", "count")
+    )
+
+
+async def _totals(query):
+    # Tortoise 对含 JOIN 的 aggregate 自动按主键分组，显式常量组避免返回每条记录一行。
+    rows = (
+        await query.annotate(
+            all_records=RawSQL("'all'"),
+            total=Count("id"),
+            students=Count("user_id", distinct=True),
+        )
+        .group_by("all_records")
+        .values("all_records", "total", "students")
+    )
+    return rows[0] if rows else {"total": 0, "students": 0}
 
 
 async def get_statistics(
@@ -48,116 +52,88 @@ async def get_statistics(
     from_time: datetime | None = None,
     to_time: datetime | None = None,
 ) -> dict:
-    """聚合多维统计数据，供管理端统计图表使用。"""
-
-    records = await _records(actor_id, is_superuser, course_id, class_name, from_time, to_time)
-    total = len(records)
-
-    type_counter: Counter = Counter()
-    course_counter: Counter = Counter()
-    class_counter: Counter = Counter()
-    source_counter: Counter = Counter()
-    day_counter: Counter = Counter()
-    hour_counter: Counter = Counter()
-    student_ids: set[int] = set()
-
-    for record in records:
-        type_counter[str(record.emoji_type.value if hasattr(record.emoji_type, "value") else record.emoji_type)] += 1
-        source = str(record.source.value if hasattr(record.source, "value") else record.source)
-        source_counter[source] += 1
-        if record.user_id is not None:
-            student_ids.add(record.user_id)
-        course_name = record.session.course.name if record.session.course else "未知课程"
-        course_counter[(record.session.course_id, course_name)] += 1
-        class_counter[record.session.class_name or "未分班"] += 1
-        if record.timestamp is not None:
-            day_counter[format_beijing(record.timestamp, "%Y-%m-%d")] += 1
-            hour_counter[format_beijing(record.timestamp, "%H:00")] += 1
-
-    def _sort(counter: Counter) -> list[dict]:
-        return [{"key": key, "count": count} for key, count in counter.most_common()]
-
+    query = EmojiRecord.all()
+    if not is_superuser:
+        query = query.filter(session__course__teacher_id=actor_id)
+    if course_id is not None:
+        query = query.filter(session__course_id=course_id)
+    if class_name:
+        query = query.filter(session__class_name=class_name)
+    if from_time is not None:
+        query = query.filter(timestamp__gte=from_time)
+    if to_time is not None:
+        query = query.filter(timestamp__lte=to_time)
+    totals = await _totals(query)
+    total = totals["total"]
+    types = await _groups(query, "emoji_type")
+    sources = await _groups(query, "source")
+    courses = await _groups(query, "session__course_id", "session__course__name")
+    class_rows = await _groups(query, "session__class_name")
+    classes = {}
+    for row in class_rows:
+        name = row["session__class_name"] or "未分班"
+        classes[name] = classes.get(name, 0) + row["count"]
+    source_count = {row["source"]: row["count"] for row in sources}
     return {
         "overview": {
             "total_records": total,
-            "total_students": len(student_ids),
-            "manual_records": source_counter.get("MANUAL", 0),
-            "ai_records": source_counter.get("AI", 0),
+            "total_students": totals["students"],
+            "manual_records": source_count.get("MANUAL", 0),
+            "ai_records": source_count.get("AI", 0),
         },
         "by_type": [
-            {"emoji_type": item["key"], "count": item["count"], "percentage": _ratio(item["count"], total)}
-            for item in _sort(type_counter)
+            {"emoji_type": r["emoji_type"], "count": r["count"], "percentage": _ratio(r["count"], total)} for r in types
         ],
         "by_course": [
-            {"course_id": key[0], "course_name": key[1], "count": count, "percentage": _ratio(count, total)}
-            for key, count in course_counter.most_common()
+            {
+                "course_id": r["session__course_id"],
+                "course_name": r["session__course__name"],
+                "count": r["count"],
+                "percentage": _ratio(r["count"], total),
+            }
+            for r in courses
         ],
         "by_class": [
-            {"class_name": item["key"], "count": item["count"], "percentage": _ratio(item["count"], total)}
-            for item in _sort(class_counter)
+            {"class_name": name, "count": count, "percentage": _ratio(count, total)}
+            for name, count in sorted(classes.items(), key=lambda item: (-item[1], item[0]))
         ],
         "by_source": [
-            {"source": item["key"], "count": item["count"], "percentage": _ratio(item["count"], total)}
-            for item in _sort(source_counter)
+            {"source": r["source"], "count": r["count"], "percentage": _ratio(r["count"], total)} for r in sources
         ],
-        "by_day": [{"day": key, "count": count} for key, count in sorted(day_counter.items())],
-        "by_hour": [{"hour": key, "count": count} for key, count in sorted(hour_counter.items())],
+        "by_day": [{"day": r["bucket"], "count": r["count"]} for r in await _buckets(query, "day")],
+        "by_hour": [{"hour": r["bucket"], "count": r["count"]} for r in await _buckets(query, "hour")],
     }
 
 
-async def get_realtime_dashboard(
-    actor_id: int,
-    is_superuser: bool,
-    session_id: int,
-) -> dict:
-    """聚合单个课堂会话的实时看板数据。"""
-
-    from app.models.classroom import ClassSession
-
+async def get_realtime_dashboard(actor_id: int, is_superuser: bool, session_id: int) -> dict:
     session = await ClassSession.get_or_none(id=session_id).prefetch_related("course")
     if session is None:
         return {"found": False}
-
-    # 教师只能查看自己所授课程的课堂。
     if not is_superuser and session.course.teacher_id != actor_id:
         return {"found": True, "forbidden": True}
-
-    records = await EmojiRecord.filter(session_id=session_id).order_by("timestamp")
-    total = len(records)
-
-    type_counter: Counter = Counter()
-    source_counter: Counter = Counter()
-    minute_counter: Counter = Counter()
-    student_ids: set[int] = set()
-
-    for record in records:
-        type_counter[str(record.emoji_type.value if hasattr(record.emoji_type, "value") else record.emoji_type)] += 1
-        source = str(record.source.value if hasattr(record.source, "value") else record.source)
-        source_counter[source] += 1
-        if record.user_id is not None:
-            student_ids.add(record.user_id)
-        if record.timestamp is not None:
-            minute_counter[format_beijing(record.timestamp, "%Y-%m-%d %H:%M")] += 1
-
+    query = EmojiRecord.filter(session_id=session_id)
+    totals = await _totals(query)
+    total = totals["total"]
+    sources = {row["source"]: row["count"] for row in await _groups(query, "source")}
     return {
         "found": True,
         "forbidden": False,
         "session": {
             "id": session.id,
             "course_id": session.course_id,
-            "course_name": session.course.name if session.course else "",
+            "course_name": session.course.name,
             "class_name": session.class_name,
             "classroom": session.classroom,
-            "start_time": format_beijing(session.start_time, "%Y-%m-%d %H:%M:%S") if session.start_time else None,
-            "end_time": format_beijing(session.end_time, "%Y-%m-%d %H:%M:%S") if session.end_time else None,
+            "start_time": format_beijing(session.start_time, "%Y-%m-%d %H:%M:%S"),
+            "end_time": format_beijing(session.end_time, "%Y-%m-%d %H:%M:%S"),
         },
         "summary": [
-            {"emoji_type": key, "count": count, "percentage": _ratio(count, total)}
-            for key, count in type_counter.most_common()
+            {"emoji_type": r["emoji_type"], "count": r["count"], "percentage": _ratio(r["count"], total)}
+            for r in await _groups(query, "emoji_type")
         ],
         "total_count": total,
-        "student_count": len(student_ids),
-        "manual_count": source_counter.get("MANUAL", 0),
-        "ai_count": source_counter.get("AI", 0),
-        "timeline": [{"time": key, "count": count} for key, count in sorted(minute_counter.items())],
+        "student_count": totals["students"],
+        "manual_count": sources.get("MANUAL", 0),
+        "ai_count": sources.get("AI", 0),
+        "timeline": [{"time": r["bucket"], "count": r["count"]} for r in await _buckets(query, "minute")],
     }

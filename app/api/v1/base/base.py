@@ -14,7 +14,7 @@ from app.schemas.base import Fail, Success
 from app.schemas.login import *
 from app.schemas.users import UpdatePassword
 from app.settings import settings
-from app.utils.jwt_utils import create_access_token
+from app.utils.jwt_utils import create_access_token, credential_tag
 from app.utils.password import get_password_hash, is_password_strong, verify_password
 
 router = APIRouter()
@@ -84,6 +84,7 @@ async def login_access_token(credentials: CredentialsSchema):
                 username=user.username,
                 is_superuser=user.is_superuser,
                 exp=expire,
+                credential_tag=credential_tag(user.password),
             )
         ),
         username=user.username,
@@ -99,6 +100,7 @@ async def get_userinfo():
     data["avatar"] = "https://avatars.githubusercontent.com/u/54677442?v=4"
     # Stable server-derived capabilities; legacy course/schedule ownership remains valid.
     names = await user_obj.roles.all().values_list("name", flat=True)
+    data["is_admin"] = user_obj.is_superuser or "ADMIN" in names
     codes = [code for code in ["STUDENT", "TEACHER"] if code in names]
     if await Course.filter(teacher_id=user_id).exists() and "TEACHER" not in codes:
         codes.append("TEACHER")
@@ -160,6 +162,5 @@ async def update_user_password(req_in: UpdatePassword):
     verified = verify_password(req_in.old_password, user.password)
     if not verified:
         return Fail(msg="旧密码验证错误！")
-    user.password = get_password_hash(req_in.new_password)
-    await user.save()
+    await user_controller.set_password(user, req_in.new_password)
     return Success(msg="修改成功")

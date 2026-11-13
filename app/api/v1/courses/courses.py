@@ -8,6 +8,7 @@ from app.core.dependency import DependAuth
 from app.models import User
 from app.schemas.base import Success, SuccessExtra
 from app.schemas.classroom import CourseCreate, CourseUpdate
+from app.services.ai_jobs import is_admin
 
 router = APIRouter()
 
@@ -20,7 +21,7 @@ async def _dict(obj):
 async def list_courses(page: int = Query(1, ge=1), page_size: int = Query(20, ge=1, le=100), keyword: str = ""):
     actor_id = CTX_USER_ID.get()
     actor = await User.get(id=actor_id)
-    if actor.is_superuser:
+    if await is_admin(actor):
         total, courses = await course_controller.list(page, page_size)
     else:
         total, courses = await course_controller.list_for_teacher(actor_id, page, page_size, keyword)

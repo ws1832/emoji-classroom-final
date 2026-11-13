@@ -25,12 +25,14 @@
 
 <script setup>
 import ContextMenu from './ContextMenu.vue'
-import { useTagsStore } from '@/store'
+import { useTagsStore, useUserStore } from '@/store'
+import { filterBusinessMenus } from '@/utils/auth/business'
 import ScrollX from '@/components/common/ScrollX.vue'
 
 const route = useRoute()
 const router = useRouter()
 const tagsStore = useTagsStore()
+const userStore = useUserStore()
 const tabRefs = ref([])
 const scrollXRef = ref(null)
 
@@ -40,6 +42,16 @@ const contextMenuOption = reactive({
   y: 0,
   currentPath: '',
 })
+
+// 更新后的身份不能继续显示旧门户标签（例如管理员曾是课程教师）。
+watch(
+  () => userStore.userInfo,
+  (user) => {
+    const allowed = filterBusinessMenus(tagsStore.tags, user)
+    if (allowed.length !== tagsStore.tags.length) tagsStore.setTags(allowed)
+  },
+  { immediate: true },
+)
 
 watch(
   () => route.path,

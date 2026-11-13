@@ -1,8 +1,7 @@
 import i18n from '~/i18n'
 import { useUserStore } from '@/store/modules/user'
+import Layout from '@/layout/index.vue'
 const { t } = i18n.global
-
-const Layout = () => import('@/layout/index.vue')
 
 export const basicRoutes = [
   {
@@ -11,7 +10,12 @@ export const basicRoutes = [
     component: Layout,
     isHidden: true,
     children: [
-      { path: '', name: 'AccountHome', component: () => import('@/views/account/index.vue') },
+      {
+        path: '',
+        name: 'AccountHome',
+        component: () => import('@/views/account/index.vue'),
+        meta: { title: t('auth.account') },
+      },
     ],
   },
   {
@@ -29,7 +33,7 @@ export const basicRoutes = [
         path: '',
         name: 'StudentSendHome',
         component: () => import('@/views/student/classroom/index.vue'),
-        meta: { businessRole: 'STUDENT' },
+        meta: { title: t('auth.studentSend'), businessRole: 'STUDENT' },
       },
     ],
   },
@@ -48,7 +52,7 @@ export const basicRoutes = [
         path: '',
         name: 'StudentHistoryHome',
         component: () => import('@/views/student/history/index.vue'),
-        meta: { businessRole: 'STUDENT' },
+        meta: { title: t('auth.studentHistory'), businessRole: 'STUDENT' },
       },
     ],
   },
@@ -67,7 +71,7 @@ export const basicRoutes = [
         path: '',
         name: 'TeacherClassroomHome',
         component: () => import('@/views/teacher/classroom/index.vue'),
-        meta: { businessRole: 'TEACHER' },
+        meta: { title: t('auth.teacherClassroom'), businessRole: 'TEACHER' },
       },
     ],
   },
@@ -82,7 +86,7 @@ export const basicRoutes = [
         path: '',
         name: 'TeacherClassroomDetail',
         component: () => import('@/views/teacher/classroom-detail/index.vue'),
-        meta: { businessRole: 'TEACHER' },
+        meta: { title: t('history.teacherTitle'), businessRole: 'TEACHER' },
       },
     ],
   },

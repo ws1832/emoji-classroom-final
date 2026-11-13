@@ -39,8 +39,8 @@ async function updatePassword() {
     passwordForm.new_password = ''
     passwordForm.confirm_password = ''
     passwordFormRef.value.restoreValidation()
-    // The current backend does not revoke the JWT on password change.
     $message.success(res.msg || t('auth.passwordChanged'))
+    await userStore.logout()
   } catch (error) {
     if (!Array.isArray(error)) errorMessage.value = error?.message || t('auth.requestFailed')
   } finally {

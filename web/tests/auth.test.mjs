@@ -12,6 +12,7 @@ import {
   canAccessBusinessRoute,
   getSafeRedirect,
   filterBusinessMenus,
+  isAdministrator,
 } from '../src/utils/auth/business.js'
 import { validEmail, samePassword, clearLegacyPassword } from '../src/utils/auth/forms.js'
 import { studentRegistrationContract } from '../src/api/auth-contract.js'
@@ -36,6 +37,46 @@ import {
   EMOTIONS,
   recordUserLabel,
 } from '../src/utils/emoji.js'
+import { canControlAI, teacherIds } from '../src/utils/ai.js'
+import { routeBreadcrumbs, upsertRouteTag } from '../src/utils/tags.js'
+
+test('empty child routes do not repeat the same breadcrumb title', () => {
+  const matched = [
+    { path: '/teacher/classroom', meta: { title: '我的课堂' } },
+    { path: '/teacher/classroom', meta: { title: '我的课堂' } },
+    { path: '/teacher/classroom/detail', meta: { title: '课堂历史' } },
+    { path: '/untitled', meta: {} },
+  ]
+  assert.deepEqual(routeBreadcrumbs(matched), [matched[0], matched[2]])
+})
+
+test('route tabs refresh legacy internal labels without duplicates or input mutation', () => {
+  const old = [{ path: '/teacher/classroom', name: 'TeacherClassroomHome', title: 'TeacherClassroomHome' }]
+  const updated = upsertRouteTag(old, {
+    path: '/teacher/classroom', name: 'TeacherClassroomHome', title: '我的课堂',
+  })
+  assert.equal(updated.length, 1)
+  assert.equal(updated[0].title, '我的课堂')
+  assert.equal(updated[0].name, 'TeacherClassroomHome')
+  assert.equal(old[0].title, 'TeacherClassroomHome')
+  assert.equal(upsertRouteTag(updated, { path: '/teacher/classroom' })[0].title, '我的课堂')
+  assert.equal(upsertRouteTag(updated, { path: '/student/history', title: '个人历史' }).length, 2)
+})
+
+test('D AI actions require live revisions/preflight and grants parse strictly', async () => {
+  const job = { id: 4, active: true, desired: 'ready', observed: 'prechecking', generation: 2 }
+  assert.equal(canControlAI(job, 'start'), false)
+  assert.equal(canControlAI({ ...job, observed: 'ready' }, 'start'), true)
+  assert.equal(canControlAI({ ...job, desired: 'stopped', observed: 'ready' }, 'start'), false)
+  assert.equal(canControlAI({ ...job, desired: 'running' }, 'pause'), true)
+  assert.equal(canControlAI({ ...job, active: false }, 'stop'), false)
+  assert.deepEqual(teacherIds('1, 3, 1'), [1, 3])
+  for (const invalid of ['1,-2', '1,', '1.0', '9007199254740992'])
+    assert.throws(() => teacherIds(invalid))
+  await api.controlAIJob(job, 'stop')
+  assert.equal(state.calls.at(-1).path, '/ai/jobs/4/actions')
+  assert.deepEqual(state.calls.at(-1).data, { action: 'stop', revision: 2 })
+})
 
 function setup(component) {
   return component.setup({}, { expose() {} })
@@ -135,6 +176,28 @@ test('single and dual role defaults and switching use only returned codes', () =
     canAccessBusinessRoute({ path: '/teacher/classroom' }, { role_codes: ['STUDENT'] }),
     false
   )
+})
+
+test('administrators use global workbench even with legacy teacher/student ownership', () => {
+  for (const identity of [{ is_admin: true }, { is_superuser: true }]) {
+    const data = { id: 1, role_codes: ['STUDENT', 'TEACHER'], ...identity }
+    assert.equal(isAdministrator(data), true)
+    assert.deepEqual(getBusinessRoles(data), [])
+    assert.equal(getDefaultPath(data, 'TEACHER'), '/classroom/dashboard')
+    assert.equal(canAccessBusinessRoute({ path: '/teacher/classroom' }, data), false)
+    assert.equal(canAccessBusinessRoute({ path: '/student/classroom' }, data), false)
+    assert.deepEqual(filterBusinessMenus([
+      { path: '/teacher/classroom', name: '我的课堂' },
+      { path: '/student/classroom', name: '学生反馈' },
+      { path: '/classroom', name: '课堂管理', children: [{ path: 'dashboard', name: '实时看板' }] },
+    ], data).map((item) => item.path), ['/classroom'])
+    const store = useUserStore()
+    store.setUserInfo(data)
+    assert.equal(store.isAdministrator, true)
+    assert.equal(store.switchBusinessRole('TEACHER'), false)
+    assert.equal(store.defaultPath, '/classroom/dashboard')
+  }
+  assert.equal(isAdministrator({ roles: [{ name: 'ADMIN' }], role_codes: ['ADMIN'], is_admin: 'true' }), false)
 })
 
 test('userinfo errors propagate instead of returning an Error as successful user data', async () => {
@@ -367,7 +430,7 @@ test('form validation failures restore loading and do not send requests', async 
   assert.equal(state.calls.length, 0)
 })
 
-test('password change only posts old/new password, retains current JWT and resets fields', async () => {
+test('password change only posts old/new password, logs out and resets fields', async () => {
   state.token = 'valid'
   const page = setup(Profile)
   formRef(page)
@@ -379,7 +442,7 @@ test('password change only posts old/new password, retains current JWT and reset
   await page.updatePassword()
   assert.equal(state.calls[0].path, '/base/update_password')
   assert.deepEqual(state.calls[0].data, { old_password: 'old', new_password: 'new' })
-  assert.equal(state.token, 'valid')
+  assert.equal(state.token, '')
   assert.equal(page.passwordForm.new_password, '')
   assert.equal(page.loading.value, false)
 })

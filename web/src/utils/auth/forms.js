@@ -1,4 +1,4 @@
-// No invented strength rule: the current update-password schema only requires strings.
+// 这里只校验确认密码一致；密码强度由后端统一强制执行。
 export function samePassword(password, confirmation) {
   return typeof confirmation === 'string' && confirmation.length > 0 && password === confirmation
 }

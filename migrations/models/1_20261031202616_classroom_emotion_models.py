@@ -2,6 +2,8 @@ from tortoise import BaseDBAsyncClient
 
 
 async def upgrade(db: BaseDBAsyncClient) -> str:
+    if db and db.capabilities.dialect == "mysql":
+        return "SELECT 1;"  # MySQL baseline tables are created by migration 0.
     return """
         CREATE TABLE IF NOT EXISTS "class_session" (
     "id" INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,

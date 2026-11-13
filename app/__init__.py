@@ -1,7 +1,9 @@
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi import HTTPException
 from tortoise import Tortoise
+from aerich import Command
 
 from app.core.exceptions import SettingNotFound
 from app.core.init_app import (
@@ -20,7 +22,14 @@ except ImportError:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # 应用启动时准备数据库和基础权限数据；关闭时释放连接。
-    await init_data()
+    if settings.AUTO_INIT_DB:
+        await init_data()
+    else:
+        command = Command(tortoise_config=settings.TORTOISE_ORM)
+        await command.init()
+        if await command.heads():
+            await Tortoise.close_connections()
+            raise RuntimeError("Database migration required; run scripts/migrate.py once before API startup")
     yield
     await Tortoise.close_connections()
 
@@ -37,6 +46,15 @@ def create_app() -> FastAPI:
     )
     register_exceptions(app)
     register_routers(app, prefix="/api")
+
+    @app.get("/healthz", include_in_schema=False)
+    async def health():
+        try:
+            await Tortoise.get_connection(settings.DB_ENGINE).execute_query("SELECT 1")
+        except Exception:
+            raise HTTPException(503, "Database unavailable") from None
+        return {"status": "ready"}
+
     return app
 
 

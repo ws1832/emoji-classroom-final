@@ -1,4 +1,5 @@
 """B 功能测试：学生与教师改密、登录及跨用户和跨课堂权限校验。"""
+
 from datetime import datetime, timedelta
 
 import pytest
@@ -43,8 +44,10 @@ async def test_password_change_and_real_login(client, actor):
         "/api/v1/base/access_token", json={"username": user.username, "password": new_password}
     )
     assert rejected.status_code == 400 and accepted.status_code == 200
-    # Current contract: changing the password does not revoke existing JWTs.
-    assert (await client.get("/api/v1/base/userinfo", headers=headers)).status_code == 200
+    # 安全修订：密码改变撤销旧JWT，重新登录后的凭证可用。
+    assert (await client.get("/api/v1/base/userinfo", headers=headers)).status_code == 401
+    fresh = {"token": accepted.json()["data"]["access_token"]}
+    assert (await client.get("/api/v1/base/userinfo", headers=fresh)).status_code == 200
 
 
 async def test_two_teachers_two_students_server_permissions(client):

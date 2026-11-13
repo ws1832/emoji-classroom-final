@@ -1,7 +1,7 @@
 import { defineConfig, presetAttributify, presetUno } from 'unocss'
 
 export default defineConfig({
-  exclude: [
+  content: { pipeline: { exclude: [
     'node_modules',
     '.git',
     '.github',
@@ -12,7 +12,7 @@ export default defineConfig({
     'mock',
     'public',
     './stats.html',
-  ],
+  ] } },
   presets: [presetUno(), presetAttributify()],
   shortcuts: [
     ['wh-full', 'w-full h-full'],

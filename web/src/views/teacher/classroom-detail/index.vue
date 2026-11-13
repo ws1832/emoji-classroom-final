@@ -16,6 +16,7 @@
           >{{ classroom.start_time }} — {{ classroom.end_time }}</n-descriptions-item
         >
       </n-descriptions>
+      <BrowserClassroomPanel v-if="classroom" :key="classroom.id" :session-id="classroom.id" />
       <HistoryFilters v-model="draft" teacher @apply="apply" @reset="reset" />
       <n-alert v-if="filterError" type="error">{{ filterError }}</n-alert>
       <template v-if="classroom && !filterError">
@@ -51,6 +52,7 @@ import CommonPage from '@/components/page/CommonPage.vue'
 import EmojiHistory from '@/components/classroom/EmojiHistory.vue'
 import HistoryFilters from '@/components/classroom/HistoryFilters.vue'
 import EmotionSummary from '@/components/classroom/EmotionSummary.vue'
+import BrowserClassroomPanel from '@/components/ai/BrowserClassroomPanel.vue'
 import { parseSessionId } from '@/utils/emoji'
 import { historyRange, normalizeStatistics } from '@/utils/history'
 import { useBusinessList } from '@/composables/useBusinessList'

@@ -1,4 +1,5 @@
 """B 功能测试：学生注册登录、排课、情绪提交及教师历史查询闭环。"""
+
 from app.api.v1.base import base_router
 from app.api.v1.dashboard import dashboard_router
 from test_classroom_api import _create_course, _create_session
@@ -13,6 +14,10 @@ async def test_real_student_teacher_flow(client):
     client.teacher.password = get_password_hash(password)
     await client.student.save()
     await client.teacher.save()
+    from conftest import _make_token
+
+    client.student_token = _make_token(client.student)
+    client.teacher_token = _make_token(client.teacher)
     course = await _create_course(client)
     session = await _create_session(client, course)
     teacher = {"token": client.teacher_token}

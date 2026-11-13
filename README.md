@@ -1,538 +1,92 @@
-<p align="center">
-  <a href="https://github.com/mizhexiaoxiao/vue-fastapi-admin">
-    <img alt="Vue FastAPI Admin Logo" width="200" src="https://github.com/mizhexiaoxiao/vue-fastapi-admin/blob/main/deploy/sample-picture/logo.svg">
-  </a>
-</p>
+# 表情符号课堂情绪检查器
 
-<h1 align="center">vue-fastapi-admin</h1>
+基于 Vue 3 + Naive UI + FastAPI + Tortoise ORM，学生、教师、管理员及独立 AI 服务共用原用户、课程、课堂、排课和 EmojiRecord。项目从 Vue FastAPI Admin 扩展，保留原 MIT 版权，不将模板演示站或截图当作本项目成果。
 
-[English](./README-en.md) | 简体中文
+## 三端职责
 
-基于 FastAPI + Vue3 + Naive UI 的现代化前后端分离开发平台，融合了 RBAC 权限管理、动态路由和 JWT 鉴权，助力中小型应用快速搭建，也可用于学习参考。
+| 身份 | 功能 |
+| --- | --- |
+| 学生 | 注册/登录/改密、已排课堂手动 emoji、个人手动历史、网页摄像头匿名采样 |
+| 教师 | 所授课堂历史、统计、看板；只读匿名采集状态 |
+| 管理员 | 全局用户/角色/课程/课堂/排课、看板/统计/CSV、课堂采集策略和 AI 服务身份 |
 
-### 特性
-- **最流行技术栈**：基于 Python 3.11 和 FastAPI 高性能异步框架，结合 Vue3 和 Vite 等前沿技术进行开发，同时使用高效的 npm 包管理器 pnpm。
-- **代码规范**：项目内置丰富的规范插件，确保代码质量和一致性，有效提高团队协作效率。
-- **动态路由**：后端动态路由，结合 RBAC（Role-Based Access Control）权限模型，提供精细的菜单路由控制。
-- **JWT鉴权**：使用 JSON Web Token（JWT）进行身份验证和授权，增强应用的安全性。
-- **细粒度权限控制**：实现按钮和接口级别的权限控制，确保不同用户或角色在界面操作和接口访问时具有不同的权限限制。
+管理员没有“我的课堂/我的教室”；教师不配置 AI 或启停课堂采集；学生只授权/停止自己的本机摄像头。指导书没有要求公共摄像头、固定次数或强制学生开启相机，原手动反馈始终保留。
 
-### 在线预览（原框架参考，非本项目业务演示）
-- [http://47.111.145.81:3000](http://47.111.145.81:3000)
-- username: admin
-- password: 123456
+## 实际使用的 AI
 
-### 登录页
+**自部署的独立 Python 服务 `emoji_ai.browser_service`，不是外部大模型/云 API。** 学生普通内置/USB 摄像头通过浏览器 `getUserMedia` 采样，无需安装 Python、模型或插件。网页发送内存 JPEG 单帧，由独立服务推理，再凭服务器身份写入原 API/同一业务库。
 
-![image](https://github.com/mizhexiaoxiao/vue-fastapi-admin/blob/main/deploy/sample-picture/login.jpg)
-### 工作台
+| profile | 模型/框架 | 状态 |
+| --- | --- | --- |
+| **edge（默认）** | OpenCV 4.11.0.86 YuNet + OpenCV Zoo MobileFaceNet **表情分类** FP32 ONNX，CPU DNN | 固定真模型/网页硬件短测通过 |
+| standard（可选） | DeepFace 0.0.104，仅 Emotion + YuNet，ONNX Runtime 1.31.1 CPU | 固定真模型/文件流程验证，非默认 |
+| FER | 仅选型对照，未安装/集成 | 不声称支持 |
 
-![image](https://github.com/mizhexiaoxiao/vue-fastapi-admin/blob/main/deploy/sample-picture/workbench.jpg)
+默认10秒，管理员可选5/10/15/30秒；无脸/多人/低分不入库，fear/disgust赢家拒识。业务AI固定 `user_id=null`，不存原图/视频/音频，不识别身份；模型分数不是心理状态概率，AI观测条数不是学生人数。详见 [AI服务说明](docs/AI_SERVICE.md)。
 
-### 用户管理
+## Windows 本地启动
 
-![image](https://github.com/mizhexiaoxiao/vue-fastapi-admin/blob/main/deploy/sample-picture/user.jpg)
-### 角色管理
-
-![image](https://github.com/mizhexiaoxiao/vue-fastapi-admin/blob/main/deploy/sample-picture/role.jpg)
-
-### 菜单管理
-
-![image](https://github.com/mizhexiaoxiao/vue-fastapi-admin/blob/main/deploy/sample-picture/menu.jpg)
-
-### API管理
-
-![image](https://github.com/mizhexiaoxiao/vue-fastapi-admin/blob/main/deploy/sample-picture/api.jpg)
-
-## 本地快速运行（当前项目，Windows PowerShell）
-
-新用户按本节启动即可体验 A/B/C 业务。使用 SQLite，无需安装 MySQL；上方在线预览是原框架参考，不是本项目。
-
-### 1. 准备环境并取得代码
-
-- Python 3.11，安装时启用 PATH / Python Launcher。
-- Node.js 20（本项目要求至少 Node 18.8；pnpm 9 要求至少 Node 18.12）。
-- Git。终端路径含空格时使用引号。
+需要 Python3.11、Node.js **>=22**、pnpm9、Git。从仓库根执行：
 
 ```powershell
-git clone https://github.com/xzhnb666/emoji-classroom-final.git
+git clone -b feature/module_d https://github.com/kasnria001/emoji-classroom-final.git
 cd emoji-classroom-final
-py -3.11 --version
-node --version
-npm --version
-```
-
-已经下载或克隆项目的用户直接进入自己的仓库根目录，不必重复 clone。B 功能若还在开发分支，先获取包含 B 提交的版本；本地未提交文件不会自动包含在别人克隆的仓库中。
-
-### 2. 安装后端依赖
-
-```powershell
 py -3.11 -m venv .venv
-.\.venv\Scripts\python.exe -m pip install --upgrade pip
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
-```
-
-无需激活虚拟环境。Windows 请使用 requirements.txt，避免当前 pyproject.toml 中 uvloop 的平台兼容问题。
-
-### 3. 配置本地数据库
-
-第一次使用时复制配置模板；已有 .env 时只编辑，不能覆盖原有配置：
-
-```powershell
 if (!(Test-Path .env)) { Copy-Item .env.example .env }
-notepad .env
 ```
 
-将 .env 中 DB_ENGINE 改成下面一行，其余 MySQL 字段在 SQLite 模式下不使用：
-
-```ini
-DB_ENGINE=sqlite
-```
-
-建议在本机生成随机密钥，再作为 SECRET_KEY 的值填写到 .env，不要提交该文件：
+编辑 `.env`：无MySQL时设 `DB_ENGINE=sqlite`，生成随机SECRET_KEY写入该文件；已有配置不要覆盖，已有库先备份。
 
 ```powershell
 .\.venv\Scripts\python.exe -c "import secrets; print(secrets.token_urlsafe(48))"
-```
-
-.env 由仓库根目录加载，务必从根目录启动后端。SQLite 数据文件是根目录 db.sqlite3。首次启动会创建表、管理员、菜单/API 等数据，可能生成本地迁移文件；无需手工执行 aerich init/migrate/upgrade。已有数据库先备份，不要删除数据库或迁移目录来处理启动错误。B 本阶段没有新增数据模型或数据库结构变更。
-
-### 4. 启动后端（终端一）
-
-```powershell
 .\.venv\Scripts\python.exe run.py
 ```
 
-看到 Application startup complete 后，打开 http://localhost:9999/docs，确认 Swagger 能加载。终端保持运行。如果提示端口占用，先确认是否已有本项目服务，不要同时启动两份后端。
-
-### 5. 安装并启动前端（终端二）
-
-在另一个终端进入同一仓库，然后执行：
+另一个终端：
 
 ```powershell
 cd web
-npm install --global pnpm@9
+npm install --global pnpm@9.15.9
 pnpm install --frozen-lockfile
 pnpm dev
 ```
 
-仓库有 pnpm-lock.yaml（v9），不要混用 npm install 生成另一份依赖锁。默认打开 http://localhost:3100；若 Vite 提示其他端口，以终端为准。后端 9999 是 API，不是前端网页。
+Web `http://localhost:3100`；API/Swagger `http://localhost:9999/docs`；健康检查 `/healthz`。开发只本机使用；生产使用dist、反向代理和可信HTTPS，不公开Vite。
 
-前端所需配置已在 web/.env、web/.env.development 中：VITE_PORT=3100、VITE_USE_PROXY=true、VITE_BASE_API=/api/v1。web/build/constant.js 把 /api/v1 代理到 http://127.0.0.1:9999。如后端换端口，须同步改代理并重启 Vite。若克隆版本缺少前端环境文件，在 web/.env 填入上述配置以及 VITE_PUBLIC_PATH=/、VITE_USE_HASH=false 后重启。
+空开发库初始化 `admin / 123456`，已有库不重置。生产 `DEBUG=false` 拒绝默认密钥/初始密码，需强BOOTSTRAP_ADMIN_PASSWORD、随机SECRET_KEY和明确CORS_ORIGINS。**修改密码撤销旧JWT和摄像头授权，退出并重新登录；升级本轮代码后旧JWT同样需重新登录。** 管理员reset随机密码只显示一次，不再固定123456。
 
-### 6. 首次登录与关闭
+学生/教师可公开注册，注册不自动排课；管理员由现有管理员创建并授ADMIN，不公开自助提升权限。
 
-全新空库由 init_superuser 创建开发管理员，用户名 admin，初始密码 123456（公开的初始化值，不是部署凭证）。先用它进入管理端并修改密码；已有库不会重置为该值。学生请从公开注册入口注册，不要用管理员作为学生/教师演示账号。
+## 摄像头与部署
 
-前端和后端终端分别按 Ctrl+C 退出即可，不会删除 SQLite 数据。再次运行时只需执行步骤 4、5 中的启动命令，不必重装依赖。修改后端 .env 后重启后端；修改前端环境或代理后重启前端。
+管理员安装独立模型环境、显式准备权重、注册服务器身份、配置AI_BROWSER_DEVICE_ID并启动服务；学生只访问网页授权摄像头，教师不能查看画面。完整步骤见 [接入手册](docs/AI_BROWSER_CAPTURE.md)。开发AI9998，网页同源 `/ai-stream/frames`；长期凭证不进入前端。未配置AI时原MANUAL/历史/统计/CSV仍可用。
 
-MySQL 用户可参考下方 A 模块数据库说明；本地快速体验无需执行。
+正式部署模板为 `deploy/compose.yml` + `deploy/compose.browser.yml`；已删除旧根Dockerfile/entrypoint。Linux/Compose/可信TLS仍需目标环境实跑，不能以模板宣称验收。
 
-### 常见启动问题
+## 数据库与测试
 
-| 现象 | 检查方法 |
-| --- | --- |
-| py / node / pnpm 找不到 | 检查安装和 PATH，重新打开终端；pnpm 安装失败时检查 npm 全局目录权限 |
-| Windows 安装 uvloop 失败 | 使用 requirements.txt，不用当前 pyproject.toml 直接安装 |
-| 无法连接 MySQL | 快速体验应确认 DB_ENGINE=sqlite；MySQL 模式检查服务、账号、库名、字符集 |
-| 登录提示网络错误或代理 ECONNREFUSED | 确认后端已完成启动、9999/docs 能访问、前端代理目标正确 |
-| 默认管理员登录失败 | 仅空库自动创建默认账号；确认当前连接的库，不能靠删库重置密码 |
-| 注册成功但课堂为空 | 需要管理员给该学生排课，注册不会自动加入课堂 |
-| 分配教师后仍无课程 | 角色和课程归属分别配置；创建课程时填写该教师真实用户 ID，退出重登 |
-| 403 / 无权限 | 核对账号角色、课程归属与排课，不要给普通测试用户开启超级管理员绕过 |
-| 创建课堂日期校验失败 | 使用当前日期选择器，结束晚于开始；接口传 YYYY-MM-DDTHH:mm:ss，不拼接毫秒时间戳 |
-| Aerich / 表已存在错误 | 保存完整异常，核对当前 DB_ENGINE、数据库和迁移历史，由 A 处理；不要清库或删除迁移目录 |
-
-### 目录说明
-
-```
-├── app                   // 应用程序目录
-│   ├── api               // API接口目录
-│   │   └── v1            // 版本1的API接口
-│   │       ├── apis      // API相关接口
-│   │       ├── base      // 基础信息接口
-│   │       ├── menus     // 菜单相关接口
-│   │       ├── roles     // 角色相关接口
-│   │       └── users     // 用户相关接口
-│   ├── controllers       // 控制器目录
-│   ├── core              // 核心功能模块
-│   ├── log               // 日志目录
-│   ├── models            // 数据模型目录
-│   ├── schemas           // 数据模式/结构定义
-│   ├── settings          // 配置设置目录
-│   └── utils             // 工具类目录
-├── deploy                // 部署相关目录
-│   └── sample-picture    // 示例图片目录
-└── web                   // 前端网页目录
-    ├── build             // 构建脚本和配置目录
-    │   ├── config        // 构建配置
-    │   ├── plugin        // 构建插件
-    │   └── script        // 构建脚本
-    ├── public            // 公共资源目录
-    │   └── resource      // 公共资源文件
-    ├── settings          // 前端项目配置
-    └── src               // 源代码目录
-        ├── api           // API接口定义
-        ├── assets        // 静态资源目录
-        │   ├── images    // 图片资源
-        │   ├── js        // JavaScript文件
-        │   └── svg       // SVG矢量图文件
-        ├── components    // 组件目录
-        │   ├── common    // 通用组件
-        │   ├── icon      // 图标组件
-        │   ├── page      // 页面组件
-        │   ├── query-bar // 查询栏组件
-        │   └── table     // 表格组件
-        ├── composables   // 可组合式功能块
-        ├── directives    // 指令目录
-        ├── layout        // 布局目录
-        │   └── components // 布局组件
-        ├── router        // 路由目录
-        │   ├── guard     // 路由守卫
-        │   └── routes    // 路由定义
-        ├── store         // 状态管理(pinia)
-        │   └── modules   // 状态模块
-        ├── styles        // 样式文件目录
-        ├── utils         // 工具类目录
-        │   ├── auth      // 认证相关工具
-        │   ├── common    // 通用工具
-        │   ├── http      // 封装axios
-        │   └── storage   // 封装localStorage和sessionStorage
-        └── views         // 视图/页面目录
-            ├── error-page // 错误页面
-            ├── login      // 登录页面
-            ├── profile    // 个人资料页面
-            ├── system     // 系统管理页面
-            └── workbench  // 工作台页面
-```
-
-## 情绪课堂模块（A）：后端与数据库
-
-本仓库在 vue-fastapi-admin 基础上新增课堂情绪业务。A 模块负责课程、课堂会话、排课和 Emoji 记录的数据模型、Schema、控制器、数据库迁移以及数据归属校验。
-
-### 数据模型
-
-| 表名 | 说明 | 关键约束 |
-| --- | --- | --- |
-| `course` | 课程，由教师负责 | `(name, teacher_id)` 唯一 |
-| `class_session` | 课堂会话，属于某门课程 | `end_time > start_time` |
-| `schedule_user` | 课堂排课关系 | `(session_id, user_id)` 唯一 |
-| `emoji_record` | 手动或 AI 生成的情绪记录 | `source` 为 `MANUAL`/`AI`，AI 必须带 0~1 的 `confidence`，手动不能带 `confidence` |
-
-`EmojiType` 支持：`HAPPY`、`SAD`、`ANGRY`、`SURPRISED`、`NEUTRAL`。
-
-### API 接口（前缀 `/api/v1`）
-
-除登录外，以下接口都需要登录，鉴权信息放在请求头 `token`（与前端 Axios 拦截器一致）。普通接口使用 `DependAuth`，并在控制器层做教师/学生归属校验。
-
-| 方法 | 路径 | 说明 |
-| --- | --- | --- |
-| GET | `/api/v1/courses` | 查询课程列表 |
-| POST | `/api/v1/courses` | 创建课程 |
-| PUT | `/api/v1/courses/{course_id}` | 更新课程 |
-| DELETE | `/api/v1/courses/{course_id}` | 删除课程 |
-| GET | `/api/v1/sessions` | 查询课堂会话列表 |
-| POST | `/api/v1/sessions` | 创建课堂会话 |
-| PUT | `/api/v1/sessions/{session_id}` | 更新课堂会话 |
-| DELETE | `/api/v1/sessions/{session_id}` | 删除课堂会话 |
-| POST | `/api/v1/sessions/{session_id}/schedule` | 安排用户进入课堂 |
-| DELETE | `/api/v1/sessions/{session_id}/schedule/{user_id}` | 取消课堂安排 |
-| POST | `/api/v1/emoji` | 提交一条 Emoji 记录 |
-| GET | `/api/v1/emoji/history` | 查询 Emoji 历史 |
-| GET | `/api/v1/emoji/statistics` | 按类型汇总统计 |
-
-统一响应格式为 `{code, msg, data}`，分页接口额外带 `total`、`page`、`page_size`。
-
-认证接口（公开，不需要 `token`）：`POST /api/v1/base/register`（注册学生）、`POST /api/v1/base/register-teacher`（注册教师）、`POST /api/v1/base/access_token`（登录）。登录后修改密码使用 `POST /api/v1/base/update_password`。注册与修改密码的密码须为 8~128 位，且同时包含字母和数字，服务端会拒绝弱密码。
-
-路由模块已导出并在 `app/api/v1/__init__.py` 注册。以下为当前注册方式示意，无需新用户重复修改：
-
-```python
-from .courses import courses_router
-from .emoji import emoji_router
-from .sessions import sessions_router
-
-v1_router.include_router(courses_router)
-v1_router.include_router(sessions_router)
-v1_router.include_router(emoji_router)
-```
-
-#### 请求/响应示例
-
-创建课程：
-
-```json
-POST /api/v1/courses
-Content-Type: application/json
-token: <登录后的 JWT>
-
-{
-  "name": "数据结构",
-  "teacher_id": 1,
-  "description": "计算机基础课"
-}
-```
-
-```json
-{
-  "code": 200,
-  "msg": "OK",
-  "data": {
-    "id": 1,
-    "name": "数据结构",
-    "teacher_id": 1,
-    "description": "计算机基础课",
-    "created_at": "2026-11-03 13:00:00",
-    "updated_at": "2026-11-03 13:00:00"
-  }
-}
-```
-
-创建课堂会话：
-
-```json
-POST /api/v1/sessions
-token: <登录后的 JWT>
-
-{
-  "course_id": 1,
-  "start_time": "2026-11-03T10:00:00",
-  "end_time": "2026-11-03T11:00:00",
-  "classroom": "A101",
-  "class_name": "计科2301"
-}
-```
-
-```json
-{
-  "code": 200,
-  "msg": "OK",
-  "data": {
-    "id": 1,
-    "course_id": 1,
-    "start_time": "2026-11-03 10:00:00",
-    "end_time": "2026-11-03 11:00:00",
-    "classroom": "A101",
-    "class_name": "计科2301",
-    "created_at": "2026-11-03 13:00:00",
-    "updated_at": "2026-11-03 13:00:00"
-  }
-}
-```
-
-安排学生进入课堂：
-
-```json
-POST /api/v1/sessions/1/schedule
-token: <登录后的 JWT>
-
-{
-  "user_id": 2
-}
-```
-
-提交手动 Emoji（学生必须已被安排进该课堂）：
-
-```json
-POST /api/v1/emoji
-token: <登录后的 JWT>
-
-{
-  "user_id": 2,
-  "session_id": 1,
-  "emoji_type": "HAPPY",
-  "source": "MANUAL"
-}
-```
-
-```json
-{
-  "code": 200,
-  "msg": "OK",
-  "data": {
-    "id": 1,
-    "user_id": 2,
-    "session_id": 1,
-    "emoji_type": "HAPPY",
-    "timestamp": "2026-11-03 13:05:00",
-    "source": "MANUAL",
-    "confidence": null,
-    "device_source": null
-  }
-}
-```
-
-提交 AI Emoji 的数据契约（由 `EmojiCreate` 校验：AI 记录必须带 `source=AI` 和 0~1 的 `confidence`，`user_id` 可省略）：
-
-```json
-{
-  "session_id": 1,
-  "emoji_type": "HAPPY",
-  "source": "AI",
-  "confidence": 0.88,
-  "device_source": "camera-01"
-}
-```
-
-AI 服务的专用入库接口为 `POST /api/v1/ai/emoji-results`（成员 D，使用独立 `AI_SERVICE_TOKEN`），不在 A 模块范围。
-
-查询课堂 Emoji 统计：
-
-```json
-GET /api/v1/emoji/statistics?session_id=1
-token: <登录后的 JWT>
-```
-
-```json
-{
-  "code": 200,
-  "msg": "OK",
-  "data": [
-    {"emoji_type": "HAPPY", "count": 2, "percentage": 66.67},
-    {"emoji_type": "NEUTRAL", "count": 1, "percentage": 33.33}
-  ]
-}
-```
-
-### 数据库初始化与迁移
-
-#### 方式一：MySQL（推荐用于联调/部署）
-
-1. 创建数据库（必须使用 `utf8mb4`，以支持中文和 Emoji）：
-
-```sql
-CREATE DATABASE emoji_classroom DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-```
-
-2. 执行建表脚本（MySQL 8.0.16 及以上，包含课程/课堂/排课/Emoji 业务表及认证、RBAC 前置表）：
-
-```sh
-mysql -u root -p emoji_classroom < database/mysql_schema.sql
-```
-
-3. 复制 `.env.example` 为 `.env`，修改数据库连接：
-
-```sh
-cp .env.example .env
-# 编辑 .env，设置 DB_ENGINE=mysql、MYSQL_HOST、MYSQL_PORT、MYSQL_USER、MYSQL_PASSWORD、MYSQL_DATABASE=emoji_classroom
-```
-
-4. 启动后应用会自动执行初始化（`init_db`），并在缺少角色/菜单/API 数据时补齐。
-
-#### 方式二：SQLite（本地快速验证）
-
-在 `.env` 中设置：
-
-```ini
-DB_ENGINE=sqlite
-```
-
-应用会使用 `db.sqlite3`。启动时 `init_db` 会通过 Aerich 执行 `migrations/` 下的迁移并升级。
-
-#### Aerich 迁移流程（模型变更后）
-
-```sh
-# 初始化（仅首次）
-aerich init -t app.settings.TORTOISE_ORM
-
-# 生成迁移文件并应用
-aerich migrate --name classroom_emotion_models
-aerich upgrade
-```
-
-注意：`migrations/` 目录中的历史迁移是 SQLite 方言 SQL；如果使用 MySQL，请直接执行 `database/mysql_schema.sql`，或在 MySQL 连接下用 Aerich 重新生成迁移。
-
-### 运行测试
-
-```sh
-# 安装测试依赖（已写入 requirements.txt / pyproject.toml）
-pip install -r requirements.txt
-
-# 运行 A 模块单元测试和接口测试
-pytest
-```
-
-测试说明：
-
-- `tests/test_classroom_schemas.py`：A 模块 Schema 单元测试，覆盖课程名称、课堂时间区间、手动/AI Emoji 的置信度约束。
-- `tests/test_classroom_api.py`：A 模块接口测试，覆盖课程增删查、课堂会话创建与时间校验、排课、手动 Emoji 提交、来源约束以及教师/学生数据归属校验。
-- `tests/test_classroom_admin.py`：C 模块接口测试，覆盖管理端统计、实时看板、CSV 导出（含注入防护）、Emoji 列表、排课列表以及学生越权拦截。
-
-## 情绪课堂模块（B）：学生与教师客户端
-
-基于现有 Vue 3、JavaScript、Naive UI 和 Axios 实现，先按上方“本地快速运行”启动前后端。
-
-| 身份 | 功能 | 页面 |
-| --- | --- | --- |
-| 未登录 | 学生/教师注册、登录 | /register、/login |
-| 学生 | 查看已排课堂、手动提交 Emoji | /student/classroom |
-| 学生 | 个人历史、课堂/时间筛选、分页 | /student/history |
-| 教师 | 所授课程和课堂列表 | /teacher/classroom |
-| 教师 | 课堂历史、筛选、分页、情绪数量与占比 | /teacher/classroom/detail?session_id=实际课堂ID |
-| 学生/教师 | 修改密码、只读个人资料 | 头像菜单 → 个人资料 |
-
-### 使用步骤
-
-1. 教师可从登录页公开注册（选择“教师”身份），服务端自动分配 TEACHER 角色；也可以在用户管理由管理员创建教师并分配角色，不要开启超级管理员。
-2. 学生从登录页公开注册（选择“学生”身份），填写用户名、邮箱及两次相同密码，服务端自动分配 STUDENT。密码须为 8～128 位，且同时包含字母和数字。
-3. 管理员创建课程，授课教师填写该教师的真实用户 ID；创建课堂，填写班级、教室及起止时间。
-4. 在课堂排课入口加入学生的真实用户 ID。角色分配不等于排课，用户 ID 可从用户表查看。
-5. 学生登录 → 我的课堂 → 选择课堂和 Emoji → 提交 → 查看个人历史。
-6. 对应教师登录 → 选择课程 → 打开课堂 → 查看历史和基础统计。两种角色均可从头像菜单修改密码；双角色可切换入口。
-
-情绪为 HAPPY 😀、SAD 😢、ANGRY 😠、SURPRISED 😮、NEUTRAL 😐。手动来源固定 MANUAL，提交中禁止重复点击；结果不确定时先核对历史，再决定是否重试。学生没有匿名提交入口。
-
-业务时间统一北京时间（UTC+8）。筛选修改后点击查询生效，起止时间均包含；历史使用服务端分页，统计覆盖完整筛选范围，不随翻页改变。统计按记录条数计算，默认包含 MANUAL+AI，缺失类型补零。
-
-管理员和教师均不能给教师账号排课（包括双角色及已有授课课程的账号）；排课应选择学生用户 ID。已有排课不会自动删除。
-
-课程和课堂会话删除仅限管理员：教师界面不显示删除按钮，直接调用删除接口也返回 403。
-
-### 测试和限制
-
-仓库根目录执行后端测试（独立 SQLite，不修改业务库）：
+唯一受测迁移入口 `scripts/migrate.py`，应用提交Aerich **0→1→2→3**，支持SQLite/MySQL。开发自动应用提交迁移、不生成文件；生产单次迁移，API副本AUTO_INIT_DB=false。不要混跑参考SQL和Aerich，不删除迁移目录处理错误。`mysql_schema.sql`是早期手写参考，不是升级入口。
 
 ```powershell
-.\.venv\Scripts\python.exe -m pytest -q --basetemp=.venv/b-local-tests
+.\.venv\Scripts\python.exe scripts/backup_sqlite.py --source db.sqlite3 --destination .local/backups/pre-upgrade.sqlite3
+.\.venv\Scripts\python.exe scripts/migrate.py
+.\.venv\Scripts\python.exe -m pytest -q tests
+pnpm --dir web run test:auth
+pnpm --dir web run test:camera
+node --test web/tests/session-date.test.mjs
+pnpm --dir web build
 ```
 
-web 目录执行：
+SQLite活跃WAL用online backup，不裸复制；MySQL用受限客户端文件dump/restore。用户JWT沿用token头，独立AI仅接受服务Bearer，响应沿用 `{code,msg,data}`、OpenAPI `/openapi.json`。真实Worker/Chromium/MySQL需显式环境，不把skip当通过。
 
-```powershell
-pnpm run test:auth
-node tests/session-date.test.mjs
-pnpm run build
-```
+## 文档
 
+- [AI服务与模型](docs/AI_SERVICE.md)、[摄像头接入](docs/AI_BROWSER_CAPTURE.md)
+- [集成契约](docs/AI_INTEGRATION.md)、[运行手册](docs/AI_OPERATIONS.md)
+- [测试证据](docs/AI_TEST_REPORT.md)、[最终复审](docs/FINAL_REVIEW.md)
+- [结构](docs/PROJECT_STRUCTURE.md)、[范围](docs/PROJECT_SCOPE_AUDIT.md)、[分工](docs/TEAM_MODULES.md)
 
-## 课堂情绪模块（C）：管理端看板与统计
+`app`后端、`web`三端、`ai-service`独立推理、`migrations`提交迁移、`tests`回归、`deploy`部署模板。`.local`私人计划/凭证/备份/原始报告、`tools`本机工具、权重/媒体/DB/日志/真实配置不进Git；正式源码、测试、文档、锁文件提交。保留许可证和必要基础组件。
 
-C 模块负责管理端：管理员/教师查看 Emoji 数据、多维统计、实时课堂情绪看板、CSV 导出，以及课堂排课管理页面。
-
-### 后端接口（前缀 `/api/v1`）
-
-| 方法 | 路径 | 说明 |
-| --- | --- | --- |
-| GET | `/emoji` | 分页查询 Emoji 记录（管理员看全部，教师看自己的课堂） |
-| GET | `/emoji/export` | 导出 Emoji 记录 CSV（含 UTF-8 BOM 与 CSV 注入防护） |
-| GET | `/statistics` | 多维统计：按情绪类型、课程、班级、来源、按天/按小时聚合 |
-| GET | `/dashboard/realtime?session_id=` | 实时课堂情绪看板 |
-| GET | `/sessions/{session_id}/schedule` | 查询课堂已安排的用户列表 |
-
-上述接口均需登录（`token` 请求头）。统计与看板接口仅管理员和教师可访问，学生访问返回 403；教师只能查看自己所授课程的数据。
-
-### 前端管理端页面
-
-菜单「课堂情绪管理」下新增：
-
-| 菜单 | 路径 | 说明 |
-| --- | --- | --- |
-| 实时看板 | `/classroom/dashboard` | 选择课堂查看实时情绪汇总、分布与时间线，支持自动刷新 |
-| 多维统计 | `/classroom/statistics` | 按课程/班级/时间筛选，展示类型/课程/班级/来源分布与趋势 |
-| 课程管理 | `/classroom/course` | 课程增删改查 |
-| 课堂会话 | `/classroom/session` | 课堂会话增删改查与排课管理 |
-| Emoji 数据 | `/classroom/emoji` | Emoji 记录查询与 CSV 导出 |
-
-菜单在应用启动时通过 `init_classroom_menus` 幂等补齐（新老数据库都会自动创建），无需手动插入。
-
-
+本机短测不等于课堂准确率、全班容量、2小时稳定性或Linux生产验收，剩余验证明确见测试报告。

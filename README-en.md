@@ -1,219 +1,52 @@
-<p align="center">
-  <a href="https://github.com/mizhexiaoxiao/vue-fastapi-admin">
-    <img alt="Vue FastAPI Admin Logo" width="200" src="https://github.com/mizhexiaoxiao/vue-fastapi-admin/blob/main/deploy/sample-picture/logo.svg">
-  </a>
-</p>
+# Emoji Classroom Emotion Checker
 
-<h1 align="center">vue-fastapi-admin</h1>
+This repository extends Vue FastAPI Admin with shared classroom models, three role-separated Vue portals,
+FastAPI/Tortoise APIs, and an independently deployed Python expression inference service.
+Original MIT attribution is retained in LICENSE.
 
-English | [简体中文](./README.md)
+## AI implementation
 
-vue-fastapi-admin is a modern front-end and back-end separation development platform that combines FastAPI, Vue3, and Naive UI. It incorporates RBAC (Role-Based Access Control) management, dynamic routing, and JWT (JSON Web Token) authentication, making it ideal for rapid development of small to medium-sized applications and also serves as a valuable learning resource.
+Students capture timed JPEG frames using an ordinary webcam and browser `getUserMedia`; no local Python,
+model, plug-in or capture agent is installed. The self-hosted `emoji_ai.browser_service` performs inference
+and posts anonymous metadata to the existing API/database. No external LLM API is used.
 
-### Features
-- **Popular Tech Stack**: The backend is developed with the high-performance asynchronous framework FastAPI using Python 3.11, while the front-end is powered by cutting-edge technologies such as Vue3 and Vite, complemented by the efficient package manager, pnpm.
-- **Code Standards**: The project is equipped with various plugins for code standardization and quality control, ensuring consistency and enhancing team collaboration efficiency.
-- **Dynamic Routing**: Backend dynamic routing combined with the RBAC model allows for fine-grained control of menus and routing.
-- **JWT Authentication**: User identity verification and authorization are handled through JWT, enhancing the application's security.
-- **Granular Permission Control**: Implements detailed permission management including button and interface level controls, ensuring different roles and users have appropriate permissions.
+- Default `edge`: OpenCV 4.11.0.86 YuNet + OpenCV Zoo MobileFaceNet expression FP32 ONNX, CPU OpenCV DNN.
+- Optional `standard`: DeepFace 0.0.104 Emotion-only + YuNet, ONNX Runtime 1.31.1 CPU.
+- FER was evaluated as an option, not installed or exposed as a supported runtime.
+- AI results have null user IDs; no identity recognition, raw image/video retention or individual AI history.
+- Administrators configure 5/10/15/30-second sampling (default 10); teachers view assigned classrooms read-only.
+- Students authorize/stop only their own camera; manual emoji feedback remains available.
 
-### Live Demo
-- URL: http://139.9.100.77:9999
-- Username: admin
-- Password: 123456
+## Run locally on Windows
 
-### Screenshots
+Requirements: Python 3.11, Node.js >=22, pnpm 9.15.9.
 
-#### Login Page
-![Login Page](https://github.com/mizhexiaoxiao/vue-fastapi-admin/blob/main/deploy/sample-picture/login.jpg)
-
-#### Workbench
-![Workbench](https://github.com/mizhexiaoxiao/vue-fastapi-admin/blob/main/deploy/sample-picture/workbench.jpg)
-
-#### User Management
-![User Management](https://github.com/mizhexiaoxiao/vue-fastapi-admin/blob/main/deploy/sample-picture/user.jpg)
-
-#### Role Management
-![Role Management](https://github.com/mizhexiaoxiao/vue-fastapi-admin/blob/main/deploy/sample-picture/role.jpg)
-
-#### Menu Management
-![Menu Management](https://github.com/mizhexiaoxiao/vue-fastapi-admin/blob/main/deploy/sample-picture/menu.jpg)
-
-#### API Management
-![API Management](https://github.com/mizhexiaoxiao/vue-fastapi-admin/blob/main/deploy/sample-picture/api.jpg)
-
-### Quick Start
-Please follow the instructions below for installation and configuration:
-
-#### Method 1：dockerhub pull image
-
-```sh
-docker pull mizhexiaoxiao/vue-fastapi-admin:latest 
-docker run -d --restart=always --name=vue-fastapi-admin -p 9999:80 mizhexiaoxiao/vue-fastapi-admin
+```powershell
+py -3.11 -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+if (!(Test-Path .env)) { Copy-Item .env.example .env }
+# Set DB_ENGINE=sqlite and a private SECRET_KEY in .env.
+.\.venv\Scripts\python.exe run.py
+# Another terminal:
+pnpm --dir web install --frozen-lockfile
+pnpm --dir web dev
 ```
 
-#### Method 2: Build Image Using Dockerfile
-##### Install Docker
+Web: localhost:3100; API/docs: localhost:9999/docs. The public development bootstrap is admin/123456,
+only on an empty development database; production rejects default secrets. Password changes revoke old
+JWT/camera grants and require login again. Reset passwords are randomly generated and displayed once.
 
-```sh
-yum install -y docker-ce
-systemctl start docker
-```
+Use only `python scripts/migrate.py` for committed Aerich 0 -> 1 -> 2 -> 3 migrations. Back up before upgrading;
+do not combine reference SQL scripts with migrations. Production templates are `deploy/compose.yml` and
+`deploy/compose.browser.yml`; Linux/Compose/TLS deployment still requires target-environment acceptance.
 
-##### Build the Image
+The maintained detailed documentation is in Simplified Chinese:
 
-```sh
-git clone https://github.com/mizhexiaoxiao/vue-fastapi-admin.git
-cd vue-fastapi-admin
-docker build --no-cache . -t vue-fastapi-admin
-```
+- [Quick start and project documentation](README.md)
+- [Actual AI service/models](docs/AI_SERVICE.md)
+- [Browser webcam integration](docs/AI_BROWSER_CAPTURE.md)
+- [API integration](docs/AI_INTEGRATION.md), [operations](docs/AI_OPERATIONS.md)
+- [Test evidence](docs/AI_TEST_REPORT.md), [final review](docs/FINAL_REVIEW.md)
 
-##### Start the Container
-
-```sh
-docker run -d --restart=always --name=vue-fastapi-admin -p 9999:80 vue-fastapi-admin
-```
-
-##### Access the Service
-
-http://localhost:9999
-
-username：admin
-
-password：123456
-
-### Local Setup
-#### Backend
-The backend service requires the following environment:
-- Python 3.11
-
-#### Method 1 (Recommended): Install Dependencies with uv
-1. Install uv
-```sh
-pip install uv
-```
-
-2. Create and activate virtual environment
-```sh
-uv venv
-source .venv/bin/activate  # Linux/Mac
-# or
-.\.venv\Scripts\activate  # Windows
-```
-
-3. Install dependencies
-```sh
-uv add pyproject.toml
-```
-
-4. Start the backend service
-```sh
-python run.py
-```
-
-#### Method 2: Install Dependencies with Pip
-1. Create a Python virtual environment:
-```sh
-python3 -m venv venv
-source venv/bin/activate  # Linux/Mac
-# or
-.\venv\Scripts\activate  # Windows
-```
-
-2. Install project dependencies:
-```sh
-pip install -r requirements.txt
-```
-
-3. Start the backend service:
-```sh
-python run.py
-```
-The backend service is now running, and you can visit http://localhost:9999/docs to view the API documentation.
-
-#### Frontend
-The frontend project requires a Node.js environment (recommended version 18.8.0 or higher).
-- node v18.8.0+
-
-1. Navigate to the frontend project directory:
-```sh
-cd web
-```
-
-2. Install project dependencies (pnpm is recommended: https://pnpm.io/zh/installation)
-```sh
-npm i -g pnpm # If pnpm is already installed, skip this step
-pnpm i # Or use npm i
-```
-
-3. Start the frontend development server:
-```sh
-pnpm dev
-```
-
-### Directory Structure Explanation
-
-```
-├── app                   // Application directory
-│   ├── api               // API interface directory
-│   │   └── v1            // Version 1 of the API interfaces
-│   │       ├── apis      // API-related interfaces
-│   │       ├── base      // Base information interfaces
-│   │       ├── menus     // Menu related interfaces
-│   │       ├── roles     // Role related interfaces
-│   │       └── users     // User related interfaces
-│   ├── controllers       // Controllers directory
-│   ├── core              // Core functionality module
-│   ├── log               // Log directory
-│   ├── models            // Data models directory
-│   ├── schemas           // Data schema/structure definitions
-│   ├── settings          // Configuration settings directory
-│   └── utils             // Utilities directory
-├── deploy                // Deployment related directory
-│   └── sample-picture    // Sample picture directory
-└── web                   // Front-end web directory
-    ├── build             // Build scripts and configuration directory
-    │   ├── config        // Build configurations
-    │   ├── plugin        // Build plugins
-    │   └── script        // Build scripts
-    ├── public            // Public resources directory
-    │   └── resource      // Public resource files
-    ├── settings          // Front-end project settings
-    └── src               // Source code directory
-        ├── api           // API interface definitions
-        ├── assets        // Static resources directory
-        │   ├── images    // Image resources
-        │   ├── js        // JavaScript files
-        │   └── svg       // SVG vector files
-        ├── components    // Components directory
-        │   ├── common    // Common components
-        │   ├── icon      // Icon components
-        │   ├── page      // Page components
-        │   ├── query-bar // Query bar components
-        │   └── table     // Table components
-        ├── composables   // Composable functionalities
-        ├── directives    // Directives directory
-        ├── layout        // Layout directory
-        │   └── components // Layout components
-        ├── router        // Routing directory
-        │   ├── guard     // Route guards
-        │   └── routes    // Route definitions
-        ├── store         // State management (pinia)
-        │   └── modules   // State modules
-        ├── styles        // Style files directory
-        ├── utils         // Utilities directory
-        │   ├── auth      // Authentication related utilities
-        │   ├── common    // Common utilities
-        │   ├── http      // Encapsulated axios
-        │   └── storage   // Encapsulated localStorage and sessionStorage
-        └── views         // Views/Pages directory
-            ├── error-page // Error pages
-            ├── login      // Login page
-            ├── profile    // Profile page
-            ├── system     // System management page
-            └── workbench  // Workbench page
-```
-
-### Visitors Count
-
-<img align="left" src = "https://profile-counter.glitch.me/vue-fastapi-admin/count.svg" alt="Loading">
+Models, credentials, raw media, databases, local plans and runtime artifacts are not committed.
+Smoke tests do not establish classroom accuracy, whole-class capacity or production readiness.

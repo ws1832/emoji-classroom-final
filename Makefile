@@ -36,7 +36,7 @@ targets:
 
 .PHONY: install
 install: ## Install dependencies
-	uv add pyproject.toml
+	python -m pip install -r requirements.txt
 
 
 .PHONY: run
@@ -54,8 +54,8 @@ check: check-format lint
 
 .PHONY: check-format
 check-format: ## Dry-run code formatter
-	black ./ --check
-	isort ./ --profile black --check
+	black app scripts tests ai-service/src ai-service/tests --check
+	isort app scripts tests ai-service/src ai-service/tests --profile black --check
 
 .PHONY: lint
 lint: ## Run ruff
@@ -63,25 +63,17 @@ lint: ## Run ruff
  
 .PHONY: format
 format: ## Run code formatter
-	black ./
-	isort ./ --profile black
+	black app scripts tests ai-service/src ai-service/tests
+	isort app scripts tests ai-service/src ai-service/tests --profile black
 
 
 .PHONY: test
 test: ## Run the test suite
-	$(eval include .env)
-	$(eval export $(sh sed 's/=.*//' .env))
-	pytest -vv -s --cache-clear ./
-
-.PHONY: clean-db
-clean-db: ## 删除migrations文件夹和db.sqlite3
-	find . -type d -name "migrations" -exec rm -rf {} +
-	rm -f db.sqlite3 db.sqlite3-shm db.sqlite3-wal
+	python -m pytest -q tests
 
 .PHONY: migrate
-migrate: ## 运行aerich migrate命令生成迁移文件
-	aerich migrate
+migrate: ## Apply committed migrations and incremental permissions
+	python scripts/migrate.py
 
 .PHONY: upgrade
-upgrade: ## 运行aerich upgrade命令应用迁移
-	aerich upgrade
+upgrade: migrate

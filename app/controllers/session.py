@@ -12,6 +12,7 @@ from app.schemas.classroom import (
     ClassSessionUpdate,
     ScheduleUserCreate,
 )
+from app.services.ai_jobs import is_admin
 
 from .course import course_controller
 
@@ -41,7 +42,7 @@ class SessionController(CRUDBase[ClassSession, ClassSessionCreate, ClassSessionU
         if session is None:
             raise HTTPException(status_code=404, detail="Class session not found")
         actor = await self._require_user(actor_id)
-        if not actor.is_superuser and session.course.teacher_id != actor_id:
+        if not await is_admin(actor) and session.course.teacher_id != actor_id:
             raise HTTPException(status_code=403, detail="Class session does not belong to the teacher")
         return session
 
@@ -50,8 +51,18 @@ class SessionController(CRUDBase[ClassSession, ClassSessionCreate, ClassSessionU
         return await self.create(obj_in)
 
     async def update_session(self, obj_in: ClassSessionUpdate, actor_id: int) -> ClassSession:
+        from app.services.ai_jobs import classroom_mutation
+
+        async with classroom_mutation(session_id=obj_in.id):
+            return await self._update_session(obj_in, actor_id)
+
+    async def _update_session(self, obj_in: ClassSessionUpdate, actor_id: int) -> ClassSession:
         session = await self.get_for_actor(obj_in.id, actor_id)
         values = obj_in.model_dump(exclude_unset=True, exclude={"id"})
+        from app.services.ai_jobs import guard_session_mutation
+
+        if any(key in values for key in ("course_id", "start_time", "end_time")):
+            await guard_session_mutation([session.id])
         if "course_id" in values:
             await course_controller.get_for_actor(values["course_id"], actor_id)
         start_time = values.get("start_time", session.start_time)
@@ -61,10 +72,19 @@ class SessionController(CRUDBase[ClassSession, ClassSessionCreate, ClassSessionU
         return await self.update(obj_in.id, values)
 
     async def delete_session(self, session_id: int, actor_id: int) -> None:
+        from app.services.ai_jobs import classroom_mutation
+
+        async with classroom_mutation(session_id=session_id):
+            await self._delete_session(session_id, actor_id)
+
+    async def _delete_session(self, session_id: int, actor_id: int) -> None:
         actor = await self._require_user(actor_id)
-        if not actor.is_superuser:
+        if not await is_admin(actor):
             raise HTTPException(status_code=403, detail="Only administrators can delete classroom sessions")
         await self.get_for_actor(session_id, actor_id)
+        from app.services.ai_jobs import guard_session_mutation
+
+        await guard_session_mutation([session_id])
         await self.remove(session_id)
 
     async def list_for_teacher(self, teacher_id: int, page: int = 1, page_size: int = 20, course_id: int | None = None):

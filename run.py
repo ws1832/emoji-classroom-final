@@ -10,4 +10,5 @@ if __name__ == "__main__":
     ] = '%(asctime)s - %(levelname)s - %(client_addr)s - "%(request_line)s" %(status_code)s'
     LOGGING_CONFIG["formatters"]["access"]["datefmt"] = "%Y-%m-%d %H:%M:%S"
 
-    uvicorn.run("app:app", host="0.0.0.0", port=9999, reload=True, log_config=LOGGING_CONFIG)
+    # 开发入口只监听本机；部署使用显式 uvicorn 命令和受限反向代理。
+    uvicorn.run("app:app", host="127.0.0.1", port=9999, reload=True, log_config=LOGGING_CONFIG)

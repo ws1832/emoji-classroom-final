@@ -1,10 +1,11 @@
 from app.utils.time import format_beijing
+
 """手动 Emoji 记录、历史和统计 REST API。"""
 
 from datetime import datetime
 
 from fastapi import APIRouter, HTTPException, Query
-from fastapi.responses import Response
+from fastapi.responses import StreamingResponse
 
 from app.controllers.emoji import emoji_controller
 from app.controllers.session import session_controller
@@ -14,7 +15,8 @@ from app.models import Course, User
 from app.models.enums import EmojiSource, EmojiType
 from app.schemas.base import Success, SuccessExtra
 from app.schemas.emoji import EmojiCreate
-from app.services.export import build_csv_bytes
+from app.services.export import build_csv_bytes, csv_row_bytes
+from app.services.ai_jobs import is_admin
 
 router = APIRouter()
 
@@ -36,7 +38,7 @@ def _enum_value(value) -> str:
 
 
 async def _require_teacher_or_admin(actor: User) -> None:
-    if actor.is_superuser:
+    if await is_admin(actor):
         return
     has_course = await Course.filter(teacher_id=actor.id).exists()
     if not has_course:
@@ -63,7 +65,7 @@ async def list_emoji(
     await _require_teacher_or_admin(actor)
     total, records = await emoji_controller.list_records(
         actor_id,
-        actor.is_superuser,
+        await is_admin(actor),
         session_id,
         user_id,
         user_no,
@@ -100,12 +102,13 @@ async def export_emoji(
     from_time: datetime | None = None,
     to_time: datetime | None = None,
 ):
+    _validate_time_range(from_time, to_time)
     actor_id = CTX_USER_ID.get()
     actor = await User.get(id=actor_id)
     await _require_teacher_or_admin(actor)
-    records = await emoji_controller.export_records(
+    query = emoji_controller.export_query(
         actor_id,
-        actor.is_superuser,
+        await is_admin(actor),
         session_id,
         user_id,
         user_no,
@@ -116,6 +119,10 @@ async def export_emoji(
         from_time,
         to_time,
     )
+    if await query.count() > 100000:
+        raise HTTPException(422, "Export exceeds 100000 rows; narrow the time/course filters")
+    newest = await query.order_by("-id").first()
+    ceiling = newest.id if newest else 0
     headers = [
         "id",
         "user_id",
@@ -131,27 +138,29 @@ async def export_emoji(
         "device_source",
         "timestamp",
     ]
-    rows = [
-        [
-            record.id,
-            record.user_id or "",
-            record.user.user_no if record.user else "",
-            record.user.username if record.user else "",
-            record.session_id,
-            record.session.course.name if record.session.course else "",
-            record.session.class_name or "",
-            record.session.classroom or "",
-            _enum_value(record.emoji_type),
-            _enum_value(record.source),
-            record.confidence if record.confidence is not None else "",
-            record.device_source or "",
-            format_beijing(record.timestamp, "%Y-%m-%d %H:%M:%S") if record.timestamp else "",
-        ]
-        for record in records
-    ]
-    content = build_csv_bytes(headers, rows)
-    return Response(
-        content=content,
+
+    async def content():
+        yield build_csv_bytes(headers, [])
+        async for record in emoji_controller.stream_export_records(query, ceiling=ceiling):
+            row = [
+                record.id,
+                record.user_id or "",
+                record.user.user_no if record.user else "",
+                record.user.username if record.user else "",
+                record.session_id,
+                record.session.course.name if record.session.course else "",
+                record.session.class_name or "",
+                record.session.classroom or "",
+                _enum_value(record.emoji_type),
+                _enum_value(record.source),
+                record.confidence if record.confidence is not None else "",
+                record.device_source or "",
+                format_beijing(record.timestamp, "%Y-%m-%d %H:%M:%S") if record.timestamp else "",
+            ]
+            yield csv_row_bytes(row)
+
+    return StreamingResponse(
+        content(),
         media_type="text/csv; charset=utf-8",
         headers={"Content-Disposition": 'attachment; filename="emoji_records.csv"'},
     )

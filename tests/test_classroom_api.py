@@ -1,5 +1,27 @@
 """A 模块接口测试：课程、课堂会话、排课和 Emoji 记录的 REST 接口。"""
 
+from app.models import Role, User
+from conftest import _make_token
+
+
+async def test_regular_admin_manages_all_courses_and_sessions_without_ownership(client):
+    admin = await User.create(username="regular-admin", email="regular-admin@example.com", password="unused")
+    role, _ = await Role.get_or_create(name="ADMIN")
+    await admin.roles.add(role)
+    headers = {"token": _make_token(admin)}
+    course_id = await _create_course(client, name="管理员全局范围")
+    session_id = await _create_session(client, course_id)
+    for path, identifier in [("/courses", course_id), ("/sessions", session_id)]:
+        result = await client.get("/api/v1" + path, headers=headers)
+        assert result.status_code == 200 and identifier in [item["id"] for item in result.json()["data"]]
+    created = await client.post("/api/v1/courses", headers=headers,
+                                json={"name": "管理员建课", "teacher_id": client.teacher.id})
+    assert created.status_code == 200
+    assert (await client.post(f"/api/v1/sessions/{session_id}/schedule", headers=headers,
+                              json={"user_id": client.student.id})).status_code == 200
+    assert (await client.delete(f"/api/v1/sessions/{session_id}", headers=headers)).status_code == 200
+    assert (await client.delete(f"/api/v1/courses/{course_id}", headers=headers)).status_code == 200
+
 
 async def _create_course(client, name="数据结构"):
     headers = {"token": client.teacher_token}

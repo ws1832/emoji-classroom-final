@@ -1,17 +1,18 @@
 from datetime import datetime
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, Depends
+from app.core.dependency import require_admin_user
 from tortoise.expressions import Q
 
 from app.models.admin import AuditLog
 from app.schemas import SuccessExtra
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_admin_user)])
 
 
 @router.get("/list", summary="查看操作日志")
 async def get_audit_log_list(
-    page: int = Query(1, description="页码"),
-    page_size: int = Query(10, description="每页数量"),
+    page: int = Query(1, ge=1, description="页码"),
+    page_size: int = Query(10, ge=1, le=1000, description="每页数量"),
     username: str = Query("", description="操作人名称"),
     module: str = Query("", description="功能模块"),
     method: str = Query("", description="请求方法"),

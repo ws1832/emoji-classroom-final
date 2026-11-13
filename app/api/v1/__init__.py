@@ -11,6 +11,8 @@ from .roles import roles_router
 from .sessions import sessions_router
 from .statistics import statistics_router
 from .users import users_router
+from .ai import ai_router, ai_worker_router
+from .ai.browser import router as browser_capture_router
 
 v1_router = APIRouter()
 
@@ -23,3 +25,6 @@ v1_router.include_router(sessions_router)
 v1_router.include_router(emoji_router)
 v1_router.include_router(dashboard_router)
 v1_router.include_router(statistics_router)
+v1_router.include_router(ai_router)
+v1_router.include_router(ai_worker_router)
+v1_router.include_router(browser_capture_router)

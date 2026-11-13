@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { activeTag, tags, WITHOUT_TAG_PATHS } from './helpers'
 import { router } from '@/router'
 import { lStorage } from '@/utils'
+import { upsertRouteTag } from '@/utils/tags'
 
 export const useTagsStore = defineStore('tag', {
   state() {
@@ -26,9 +27,8 @@ export const useTagsStore = defineStore('tag', {
     },
     addTag(tag = {}) {
       this.setActiveTag(tag.path)
-      if (WITHOUT_TAG_PATHS.includes(tag.path) || this.tags.some((item) => item.path === tag.path))
-        return
-      this.setTags([...this.tags, tag])
+      if (WITHOUT_TAG_PATHS.includes(tag.path)) return
+      this.setTags(upsertRouteTag(this.tags, tag))
     },
     removeTag(path) {
       if (path === this.activeTag) {

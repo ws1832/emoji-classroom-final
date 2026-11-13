@@ -39,3 +39,9 @@ def build_csv_bytes(headers: list[str], rows: list[list[object]]) -> bytes:
 
     content = build_csv(headers, rows)
     return ("\ufeff" + content).encode("utf-8")
+
+
+def csv_row_bytes(values: list[object]) -> bytes:
+    buffer = io.StringIO()
+    csv.writer(buffer, lineterminator="\n").writerow(_build_row(values))
+    return buffer.getvalue().encode("utf-8")

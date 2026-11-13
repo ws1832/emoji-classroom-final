@@ -1,0 +1,11 @@
+{
+  "backend_url": "http://127.0.0.1:9999/api/v1",
+  "profile": "edge",
+  "manifest": "ai-service/models/manifest.json",
+  "model_dir": "ai-service/models",
+  "outbox_path": "ai-service/outbox/events.sqlite3",
+  "sources": {
+    "camera-1": {"kind": "usb", "value": 0},
+    "file-demo": {"kind": "file", "value": "<local-approved-video>"}
+  }
+}

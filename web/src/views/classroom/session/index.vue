@@ -22,12 +22,15 @@ import { useUserStore } from '@/store'
 import { formatDate, formatDateTime, renderIcon } from '@/utils'
 import { useCRUD } from '@/composables'
 import api from '@/api'
+import BrowserClassroomPanel from '@/components/ai/BrowserClassroomPanel.vue'
 
 defineOptions({ name: '课堂会话' })
 
 const $table = ref(null)
 const userStore = useUserStore()
 const queryItems = ref({})
+const aiSessionId = ref(null)
+const aiVisible = ref(false)
 
 const {
   modalVisible,
@@ -90,6 +93,10 @@ const columns = [
     fixed: 'right',
     render(row) {
       return [
+        h(NButton, {
+          size: 'small', style: 'margin-right: 8px;',
+          onClick: () => { aiSessionId.value = row.id; aiVisible.value = true },
+        }, { default: () => 'AI采集' }),
         h(
           NButton,
           {
@@ -110,7 +117,7 @@ const columns = [
           },
           { default: () => '排课', icon: renderIcon('carbon:calendar', { size: 16 }) }
         ),
-        userStore.isSuperUser
+        userStore.isAdministrator
           ? h(
               NPopconfirm,
               { onPositiveClick: () => handleDelete({ session_id: row.id }) },
@@ -283,6 +290,9 @@ async function handleRemoveSchedule(userId) {
           >
         </div>
       </div>
+    </NModal>
+    <NModal v-model:show="aiVisible" preset="card" title="课堂 AI 采集" style="width: min(1100px, 95vw)">
+      <BrowserClassroomPanel v-if="aiVisible" :key="aiSessionId" :session-id="aiSessionId" />
     </NModal>
   </CommonPage>
 </template>

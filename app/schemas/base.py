@@ -9,11 +9,12 @@ class Success(JSONResponse):
         code: int = 200,
         msg: Optional[str] = "OK",
         data: Optional[Any] = None,
+        headers: dict[str, str] | None = None,
         **kwargs,
     ):
         content = {"code": code, "msg": msg, "data": data}
         content.update(kwargs)
-        super().__init__(content=content, status_code=code)
+        super().__init__(content=content, status_code=code, headers=headers)
 
 
 class Fail(JSONResponse):
@@ -22,11 +23,12 @@ class Fail(JSONResponse):
         code: int = 400,
         msg: Optional[str] = None,
         data: Optional[Any] = None,
+        headers: dict[str, str] | None = None,
         **kwargs,
     ):
         content = {"code": code, "msg": msg, "data": data}
         content.update(kwargs)
-        super().__init__(content=content, status_code=code)
+        super().__init__(content=content, status_code=code, headers=headers)
 
 
 class SuccessExtra(JSONResponse):
@@ -38,6 +40,7 @@ class SuccessExtra(JSONResponse):
         total: int = 0,
         page: int = 1,
         page_size: int = 20,
+        headers: dict[str, str] | None = None,
         **kwargs,
     ):
         content = {
@@ -49,4 +52,4 @@ class SuccessExtra(JSONResponse):
             "page_size": page_size,
         }
         content.update(kwargs)
-        super().__init__(content=content, status_code=code)
+        super().__init__(content=content, status_code=code, headers=headers)

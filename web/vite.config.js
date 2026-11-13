@@ -25,11 +25,16 @@ export default defineConfig(({ command, mode }) => {
     define: viteDefine,
     plugins: createVitePlugins(viteEnv, isBuild),
     server: {
-      host: '0.0.0.0',
+      host: '127.0.0.1',
       port: VITE_PORT,
-      open: true,
+      open: false,
       proxy: VITE_USE_PROXY
         ? {
+            '/ai-stream': {
+              target: 'http://127.0.0.1:9998',
+              changeOrigin: false,
+              rewrite: (path) => path.replace(/^\/ai-stream/, ''),
+            },
             [VITE_BASE_API]: PROXY_CONFIG[VITE_BASE_API],
           }
         : undefined,

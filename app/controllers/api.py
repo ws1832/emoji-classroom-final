@@ -17,7 +17,7 @@ class ApiController(CRUDBase[Api, ApiCreate, ApiUpdate]):
         all_api_list = []
         for route in app.routes:
             # 只更新有鉴权的API
-            if isinstance(route, APIRoute) and len(route.dependencies) > 0:
+            if isinstance(route, APIRoute) and len(route.dependencies) > 0 and "AI设备服务" not in route.tags:
                 all_api_list.append((list(route.methods)[0], route.path_format))
         delete_api = []
         for api in await Api.all():
@@ -29,7 +29,7 @@ class ApiController(CRUDBase[Api, ApiCreate, ApiUpdate]):
             await Api.filter(method=method, path=path).delete()
 
         for route in app.routes:
-            if isinstance(route, APIRoute) and len(route.dependencies) > 0:
+            if isinstance(route, APIRoute) and len(route.dependencies) > 0 and "AI设备服务" not in route.tags:
                 method = list(route.methods)[0]
                 path = route.path_format
                 summary = route.summary

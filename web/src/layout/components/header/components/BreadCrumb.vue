@@ -1,7 +1,7 @@
 <template>
   <n-breadcrumb>
     <n-breadcrumb-item
-      v-for="item in route.matched.filter((item) => !!item.meta?.title)"
+      v-for="item in routeBreadcrumbs(route.matched)"
       :key="item.path"
       @click="handleBreadClick(item.path)"
     >
@@ -13,6 +13,7 @@
 
 <script setup>
 import { renderCustomIcon, renderIcon } from '@/utils'
+import { routeBreadcrumbs } from '@/utils/tags'
 
 const router = useRouter()
 const route = useRoute()

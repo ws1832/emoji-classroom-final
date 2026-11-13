@@ -1,47 +1,13 @@
-# 项目范围审计与数据库说明
+# 项目范围与清理结论
 
-本文档根据实验指导书和 `docs/TEAM_MODULES.md` 对模板进行区分，避免把模板功能误认为实验必做功能。
+修订：2026-11-13，依据根实验指导书。
 
-## 一、必须保留或补齐的内容
+必做学生MANUAL/历史、教师所授历史/统计、管理员全局用户/排课/统计/CSV/看板，以及独立AI采样/检测/五类映射/阈值/同库匿名结果均已有实现。指导书不要求公共摄像头或固定次数；产品仅学生网页普通摄像头。
 
-| 内容 | 结论 | 原因 |
-| --- | --- | --- |
-| User、Role、JWT、密码哈希 | 必须保留 | 指导书要求注册、登录、修改密码和 RBAC |
-| Course、ClassSession、ScheduleUser、EmojiRecord | A 必须完成 | 指导书第四节规定的核心实体 |
-| 教师/学生数据归属校验 | A 必须完成 | 不能只按 ID 查询或写入 |
-| 审计日志 | 建议保留 | 指导书将 AuditLog 列为建议实体 |
-| 统计、CSV 导出、实时看板 | 必须添加 | 指导书的管理端必做功能，属于 C |
-| AI 入库和独立令牌 | 必须添加 | 指导书的 AI 必做功能，属于 D |
-| 学生/教师页面与接口 | 必须添加 | 指导书的客户端必做功能，属于 B |
-| 数据库脚本、迁移、测试 | 必须补齐 | 指导书第八、九、十一节明确要求 |
+保留JWT/Argon2/RBAC、动态Menu/Api、审计操作元数据、领域查询、通用前端基础和第三方许可证。Dept/DeptClosure仅旧库兼容，无产品入口，不无迁移删除。旧CLI/file Worker仅真实HTTP/故障恢复回归，不展示公共摄像头UI。
 
-## 二、模板中不是实验核心的内容
+本轮删除模板演示站/截图、无引用旧AIJobPanel、根旧单容器Dockerfile及nginx/entrypoint、Makefile删除数据库/迁移的clean-db目标。统一分服务Compose和提交迁移入口，原MIT版权/模型许可证保留。
 
-以下模块不是指导书中的核心业务，但当前模板启动和管理端初始化依赖它们，暂时不建议直接删除：
+Tortoise+Aerich0→1→2→3支持SQLite/MySQL。mysql_schema.sql是历史手写参考，其余bootstrap/AI SQL也不替代迁移历史；新旧库均scripts/migrate.py，不混多条初始化路线。
 
-- `menu`、`api`：模板的动态菜单和接口权限管理实现；
-- `dept`：模板的部门管理功能，实验不是必做项；
-- `workbench`、`top-menu`、系统管理页面：模板示例页面，不等于情绪课堂功能；
-- `deploy/sample-picture`：模板演示图片，和实验业务无关；
-- `i18n`、主题配置和通用表格组件：通用前端基础设施，可以复用。
-
-如果删除这些内容，必须同步修改 `app/core/init_app.py`、RBAC 初始化、动态路由和前端权限代码，否则项目启动会失败。它们可以在项目最后整理阶段删除，不应在 A 阶段贸然删除。
-
-## 三、当前 A 的数据库落地方式
-
-当前项目已有 Tortoise 模型和 Aerich 迁移，但原始迁移文件是 SQLite 风格 SQL，而配置默认使用 MySQL。为了避免把 `AUTOINCREMENT` 等 SQLite 语句直接执行到 MySQL，项目新增了：
-
-- `database/mysql_schema.sql`：可直接在 MySQL 8.0.16 及以上版本执行，包含实验核心表、认证/RBAC 前置表，以及当前模板启动所依赖的兼容表；
-- A 的业务表：`course`、`class_session`、`schedule_user`、`emoji_record`；
-- 认证和权限前置表：`user`、`role`、`user_role`；
-- 指导书建议的 `auditlog` 表。
-
-Emoji 数据库约束包含：
-
-1. 至少五种情绪类型；
-2. 来源只能为 `MANUAL` 或 `AI`；
-3. AI 记录必须有 0 到 1 之间的置信度；
-4. 手动记录不能填写 AI 置信度；
-5. 手动记录必须关联用户，AI 记录可以匿名；该条件由 Schema 和 Controller 校验；
-6. 所有 Emoji 记录必须关联课堂会话；
-7. 不保存原始视频和人脸图片。
+仍需课堂标注质量、容量/长测、Linux/Compose/TLS现场验收；不把历史测试数字当发布门通过。当前状态见AI_TEST_REPORT/FINAL_REVIEW。

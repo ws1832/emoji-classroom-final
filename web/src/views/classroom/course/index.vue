@@ -74,7 +74,7 @@ const columns = [
           },
           { default: () => '编辑', icon: renderIcon('material-symbols:edit', { size: 16 }) }
         ),
-        userStore.isSuperUser
+        userStore.isAdministrator
           ? h(
               NPopconfirm,
               { onPositiveClick: () => handleDelete({ course_id: row.id }) },

@@ -1,0 +1,33 @@
+# Combine with compose.yml after registering the service identity and preparing secrets/models.
+services:
+  api:
+    environment:
+      AI_BROWSER_DEVICE_ID: ${AI_BROWSER_DEVICE_ID:?Register an AI service identity first}
+      AI_BROWSER_UPLOAD_URL: /ai-stream/frames
+  ai-browser:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.browser
+    volumes:
+      - ../.local/deploy/browser.json:/run/config/browser.json:ro
+      - ../ai-service/models:/models:ro
+      - browser_outbox:/outbox
+    secrets: [ai_service_token]
+    tmpfs: [/tmp]
+    read_only: true
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+    expose: ["9998"]
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+  web:
+    depends_on:
+      ai-browser:
+        condition: service_started
+secrets:
+  ai_service_token:
+    file: ../.local/deploy/ai_service_token
+volumes:
+  browser_outbox:

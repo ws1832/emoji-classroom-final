@@ -1,4 +1,3 @@
-from app.utils.time import format_beijing
 """课堂会话和排课 REST API。"""
 
 from fastapi import APIRouter, Query
@@ -9,6 +8,8 @@ from app.core.dependency import DependAuth
 from app.models import User
 from app.schemas.base import Success, SuccessExtra
 from app.schemas.classroom import ClassSessionCreate, ClassSessionUpdate, ScheduleUserCreate
+from app.services.ai_jobs import is_admin
+from app.utils.time import format_beijing
 
 router = APIRouter()
 
@@ -35,7 +36,7 @@ async def list_sessions(
 ):
     actor_id = CTX_USER_ID.get()
     actor = await User.get(id=actor_id)
-    if actor.is_superuser:
+    if await is_admin(actor):
         total, sessions = await session_controller.list(page, page_size)
     else:
         total, sessions = await session_controller.list_for_teacher(actor_id, page, page_size, course_id)

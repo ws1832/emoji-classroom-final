@@ -1,7 +1,7 @@
 <template>
   <CommonPage :title="t('auth.account')">
     <n-alert
-      v-if="!userStore.businessRoles.length && !userStore.isSuperUser"
+      v-if="!userStore.businessRoles.length && !userStore.isAdministrator"
       type="info"
       mb-20
       :title="t('auth.pendingTitle')"
@@ -19,9 +19,7 @@
         >
           {{ t(role === 'STUDENT' ? 'auth.studentEntry' : 'auth.teacherEntry') }}
         </n-button>
-        <n-button v-if="userStore.isSuperUser" @click="router.push('/classroom/dashboard')">{{
-          t('views.workbench.label_workbench')
-        }}</n-button>
+        <n-button v-if="userStore.isAdministrator" @click="router.push('/classroom/dashboard')">管理工作台</n-button>
         <n-button @click="router.push('/profile')">{{
           t('views.profile.label_change_password')
         }}</n-button>

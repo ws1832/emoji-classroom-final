@@ -1,0 +1,47 @@
+{
+  "manifest_version": 1,
+  "profiles": {
+    "standard": {
+      "artifacts": [
+        "deepface-yunet",
+        "deepface-emotion"
+      ]
+    },
+    "edge": {
+      "artifacts": [
+        "yunet",
+        "mobilefacenet"
+      ]
+    }
+  },
+  "artifacts": {
+    "yunet": {
+      "path": "face_detection_yunet_2023mar.onnx",
+      "url": "https://media.githubusercontent.com/media/opencv/opencv_zoo/48b10fa505aeb51fbd127fc60a5c660040e823b7/models/face_detection_yunet/face_detection_yunet_2023mar.onnx",
+      "sha256": "8f2383e4dd3cfbb4553ea8718107fc0423210dc964f9f4280604804ed2552fa4",
+      "bytes": 232589,
+      "upstream_commit": "48b10fa505aeb51fbd127fc60a5c660040e823b7"
+    },
+    "mobilefacenet": {
+      "path": "facial_expression_recognition_mobilefacenet_2022july.onnx",
+      "url": "https://media.githubusercontent.com/media/opencv/opencv_zoo/48b10fa505aeb51fbd127fc60a5c660040e823b7/models/facial_expression_recognition/facial_expression_recognition_mobilefacenet_2022july.onnx",
+      "sha256": "4f61307602fc089ce20488a31d4e4614e3c9753a7d6c41578c854858b183e1a9",
+      "bytes": 4791892,
+      "upstream_commit": "48b10fa505aeb51fbd127fc60a5c660040e823b7"
+    },
+    "deepface-emotion": {
+      "path": ".deepface/weights/facial_expression_model_weights.onnx",
+      "url": "https://github.com/serengil/deepface_models/releases/download/v1.0/facial_expression_model_weights.onnx",
+      "sha256": "2131942f16003c515f6b1fb09827f9eef111048f033bcc477fbb71f0d446f2a9",
+      "bytes": 5947004,
+      "release": "deepface_models-v1.0"
+    },
+    "deepface-yunet": {
+      "path": ".deepface/weights/face_detection_yunet_2023mar.onnx",
+      "url": "https://media.githubusercontent.com/media/opencv/opencv_zoo/48b10fa505aeb51fbd127fc60a5c660040e823b7/models/face_detection_yunet/face_detection_yunet_2023mar.onnx",
+      "sha256": "8f2383e4dd3cfbb4553ea8718107fc0423210dc964f9f4280604804ed2552fa4",
+      "bytes": 232589,
+      "upstream_commit": "48b10fa505aeb51fbd127fc60a5c660040e823b7"
+    }
+  }
+}

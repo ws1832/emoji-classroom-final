@@ -1,0 +1,10 @@
+{
+  "backend_url": "https://classroom.example/api/v1",
+  "profile": "edge",
+  "manifest": "/opt/classroom/ai-service/models/manifest.json",
+  "model_dir": "/models",
+  "outbox_path": "/outbox/events.sqlite3",
+  "sources": {
+    "camera-1": {"kind": "usb", "value": 0}
+  }
+}

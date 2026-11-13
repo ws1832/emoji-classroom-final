@@ -15,6 +15,8 @@ import {
 
 import CommonPage from '@/components/page/CommonPage.vue'
 import api from '@/api'
+import { useUserStore } from '@/store'
+const userStore = useUserStore()
 
 defineOptions({ name: '多维统计' })
 
@@ -66,7 +68,7 @@ const maxByHour = computed(() => Math.max(1, ...(statisticsData.value?.by_hour |
 </script>
 
 <template>
-  <CommonPage show-footer title="多维统计">
+  <CommonPage show-footer :title="userStore.isAdministrator ? '全部课程 · 多维统计' : '所授课程 · 多维统计'">
     <div mb-15 flex items-center gap-15 flex-wrap>
       <NSelect v-model:value="filters.course_id" clearable :options="courseOptions" placeholder="按课程筛选" style="width: 200px" />
       <NInput v-model:value="filters.class_name" clearable placeholder="按班级筛选" style="width: 160px" />

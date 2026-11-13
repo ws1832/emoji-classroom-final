@@ -1,0 +1,11 @@
+FROM python:3.11.15-slim-bookworm
+WORKDIR /opt/classroom
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
+RUN apt-get update && apt-get install -y --no-install-recommends libglib2.0-0 && rm -rf /var/lib/apt/lists/*
+COPY ai-service/requirements/edge-linux-py311.lock /tmp/requirements.lock
+RUN pip install --no-cache-dir --require-hashes -r /tmp/requirements.lock
+COPY ai-service /opt/classroom/ai-service
+RUN pip install --no-deps --no-build-isolation /opt/classroom/ai-service && useradd --create-home --uid 10001 classroom && mkdir /outbox && chown classroom:classroom /outbox
+USER classroom
+ENTRYPOINT ["python", "-m", "emoji_ai.browser_service"]
+CMD ["--config", "/run/config/browser.json"]

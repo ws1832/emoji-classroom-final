@@ -1,0 +1,12 @@
+{
+  "backend_url": "http://127.0.0.1:9999/api/v1",
+  "host": "127.0.0.1",
+  "port": 9998,
+  "profile": "edge",
+  "manifest": "ai-service/models/manifest.json",
+  "model_dir": "ai-service/models",
+  "outbox_path": ".local/browser-ai/outbox.sqlite3",
+  "token_file": ".local/browser-ai/service-token",
+  "allowed_origins": ["http://localhost:3100", "http://127.0.0.1:3100"],
+  "capacity": 4
+}

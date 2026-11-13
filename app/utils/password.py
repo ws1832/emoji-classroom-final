@@ -1,9 +1,9 @@
 import re
 
-from passlib import pwd
-from passlib.context import CryptContext
+from argon2 import PasswordHasher
+from argon2.exceptions import InvalidHashError, VerificationError
 
-pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")
+password_hasher = PasswordHasher()
 
 # 密码策略：8~128 位，至少包含一个字母和一个数字，且不含空白字符。
 _PASSWORD_POLICY_RE = re.compile(r"^(?=.*[A-Za-z])(?=.*\d)\S{8,128}\Z")
@@ -15,12 +15,11 @@ def is_password_strong(password: str) -> bool:
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    return pwd_context.verify(plain_password, hashed_password)
+    try:
+        return password_hasher.verify(hashed_password, plain_password)
+    except (InvalidHashError, VerificationError, TypeError):
+        return False
 
 
 def get_password_hash(password: str) -> str:
-    return pwd_context.hash(password)
-
-
-def generate_password() -> str:
-    return pwd.genword()
+    return password_hasher.hash(password)

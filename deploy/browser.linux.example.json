@@ -1,0 +1,12 @@
+{
+  "backend_url": "https://classroom.example/api/v1",
+  "host": "0.0.0.0",
+  "port": 9998,
+  "profile": "edge",
+  "manifest": "/opt/classroom/ai-service/models/manifest.json",
+  "model_dir": "/models",
+  "outbox_path": "/outbox/browser.sqlite3",
+  "token_file": "/run/secrets/ai_service_token",
+  "allowed_origins": ["https://classroom.example"],
+  "capacity": 4
+}

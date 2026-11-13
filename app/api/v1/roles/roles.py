@@ -1,6 +1,7 @@
 import logging
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, Depends
+from app.core.dependency import require_admin_user
 from fastapi.exceptions import HTTPException
 from tortoise.expressions import Q
 
@@ -9,13 +10,13 @@ from app.schemas.base import Success, SuccessExtra
 from app.schemas.roles import *
 
 logger = logging.getLogger(__name__)
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_admin_user)])
 
 
 @router.get("/list", summary="查看角色列表")
 async def list_role(
-    page: int = Query(1, description="页码"),
-    page_size: int = Query(10, description="每页数量"),
+    page: int = Query(1, ge=1, description="页码"),
+    page_size: int = Query(10, ge=1, le=1000, description="每页数量"),
     role_name: str = Query("", description="角色名称，用于查询"),
 ):
     q = Q()

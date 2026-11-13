@@ -36,6 +36,7 @@
           >{{ selected.start_time }} — {{ selected.end_time }}</n-descriptions-item
         >
       </n-descriptions>
+      <StudentCameraCapture v-if="selected" :key="selected.id" :session-id="selected.id" />
       <EmojiPicker v-model="emoji" :disabled="submitting" />
       <n-alert v-if="submitError" type="error">{{ submitError }}</n-alert>
       <n-alert v-if="uncertain" type="warning">{{ t('classroom.uncertain') }}</n-alert>
@@ -71,6 +72,7 @@ import { useI18n } from 'vue-i18n'
 const { t } = useI18n()
 import CommonPage from '@/components/page/CommonPage.vue'
 import EmojiPicker from '@/components/classroom/EmojiPicker.vue'
+import StudentCameraCapture from '@/components/ai/StudentCameraCapture.vue'
 import { useBusinessList } from '@/composables/useBusinessList'
 import { studentClassroomContract } from '@/api/auth-contract'
 import { captureSession, isCurrentSession } from '@/utils/auth/session'

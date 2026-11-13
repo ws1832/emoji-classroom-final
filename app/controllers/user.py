@@ -1,4 +1,5 @@
 from typing import List, Optional
+import secrets
 
 from fastapi.exceptions import HTTPException
 
@@ -8,6 +9,7 @@ from app.schemas.login import CredentialsSchema
 from app.schemas.users import UserCreate, UserUpdate
 from app.utils.password import get_password_hash, verify_password
 from app.utils.time import beijing_now
+from tortoise.transactions import in_transaction
 
 from .role import role_controller
 
@@ -49,12 +51,24 @@ class UserController(CRUDBase[User, UserCreate, UserUpdate]):
             role_obj = await role_controller.get(id=role_id)
             await user.roles.add(role_obj)
 
+    async def set_password(self, user: User, password: str):
+        from app.models.ai import BrowserCapture
+        from app.core.ai_auth import utc_now, wall
+
+        async with in_transaction() as db:
+            user.password = get_password_hash(password=password)
+            await user.save(using_db=db, update_fields=["password", "updated_at"])
+            await BrowserCapture.filter(owner_id=user.id).using_db(db).update(
+                active_key=None, owner_id=None, token_hash="", stopped_at=wall(utc_now())
+            )
+
     async def reset_password(self, user_id: int):
         user_obj = await self.get(id=user_id)
         if user_obj.is_superuser:
             raise HTTPException(status_code=403, detail="不允许重置超级管理员密码")
-        user_obj.password = get_password_hash(password="123456")
-        await user_obj.save()
+        password = "R9-" + secrets.token_urlsafe(24)
+        await self.set_password(user_obj, password)
+        return password
 
 
 user_controller = UserController()

@@ -1,0 +1,71 @@
+name: emoji-classroom
+x-api: &api
+  build:
+    context: ..
+    dockerfile: deploy/Dockerfile.api
+  environment: &api-environment
+    DB_ENGINE: mysql
+    MYSQL_HOST: mysql
+    MYSQL_USER: classroom
+    MYSQL_DATABASE: emoji_classroom
+    MYSQL_PASSWORD_FILE: /run/secrets/mysql_password
+    SECRET_KEY_FILE: /run/secrets/jwt_key
+    BOOTSTRAP_ADMIN_PASSWORD_FILE: /run/secrets/admin_password
+    DEBUG: "false"
+    AUTO_INIT_DB: "false"
+    CORS_ORIGINS: '["http://localhost:8080"]'
+  secrets: [mysql_password, jwt_key, admin_password]
+  depends_on:
+    mysql:
+      condition: service_healthy
+services:
+  mysql:
+    image: mysql:8.4.10
+    environment:
+      MYSQL_DATABASE: emoji_classroom
+      MYSQL_USER: classroom
+      MYSQL_PASSWORD_FILE: /run/secrets/mysql_password
+      MYSQL_ROOT_PASSWORD_FILE: /run/secrets/mysql_root
+    secrets: [mysql_password, mysql_root]
+    volumes: [mysql_data:/var/lib/mysql]
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 --silent"]
+      interval: 5s
+      timeout: 3s
+      retries: 60
+    restart: unless-stopped
+  migrate:
+    <<: *api
+    command: ["python", "scripts/migrate.py"]
+    restart: "no"
+  api:
+    <<: *api
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:9999/healthz', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+    restart: unless-stopped
+  web:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.web
+    ports: ["127.0.0.1:8080:80"]
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+secrets:
+  mysql_password:
+    file: ../.local/deploy/mysql_password
+  mysql_root:
+    file: ../.local/deploy/mysql_root
+  jwt_key:
+    file: ../.local/deploy/jwt_key
+  admin_password:
+    file: ../.local/deploy/admin_password
+volumes:
+  mysql_data:

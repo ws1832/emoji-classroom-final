@@ -20,12 +20,19 @@ class BaseUser(BaseModel):
 
 class UserCreate(BaseModel):
     email: EmailStr = Field(example="admin@qq.com")
-    username: str = Field(example="admin")
-    password: str = Field(example="123456")
+    username: str = Field(min_length=1, max_length=20, pattern=r"^\S+$", example="admin")
+    password: str = Field(max_length=128, example="ExamplePass123")
     is_active: Optional[bool] = True
     is_superuser: Optional[bool] = False
     role_ids: Optional[List[int]] = []
     dept_id: Optional[int] = Field(0, description="部门ID")
+
+    @field_validator("password")
+    @classmethod
+    def validate_password(cls, value: str) -> str:
+        if not is_password_strong(value):
+            raise ValueError("密码须为 8~128 位，且同时包含字母和数字")
+        return value
 
     def create_dict(self):
         return self.model_dump(exclude_unset=True, exclude={"role_ids"})
@@ -34,7 +41,7 @@ class UserCreate(BaseModel):
 class UserUpdate(BaseModel):
     id: int
     email: EmailStr
-    username: str
+    username: str = Field(min_length=1, max_length=20, pattern=r"^\S+$")
     is_active: Optional[bool] = True
     is_superuser: Optional[bool] = False
     role_ids: Optional[List[int]] = []
@@ -42,8 +49,8 @@ class UserUpdate(BaseModel):
 
 
 class UpdatePassword(BaseModel):
-    old_password: str = Field(description="旧密码")
-    new_password: str = Field(description="新密码")
+    old_password: str = Field(max_length=128, description="旧密码")
+    new_password: str = Field(max_length=128, description="新密码")
 
     @field_validator("new_password")
     @classmethod
