@@ -58,14 +58,5 @@
   },
   "engines": {
     "node": ">=22"
-  },
-  "pnpm": {
-    "overrides": {
-      "braces": "3.0.3",
-      "micromatch": "4.0.8",
-      "decode-uri-component": "0.5.1",
-      "postcss": "8.5.23",
-      "minimatch@<11.0.1": "11.0.1"
-    }
   }
 }

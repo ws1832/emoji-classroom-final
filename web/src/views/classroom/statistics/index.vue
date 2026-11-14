@@ -75,7 +75,7 @@ const maxByHour = computed(() => Math.max(1, ...(statisticsData.value?.by_hour |
       <NDatePicker
         v-model:formatted-value="filters.from_time"
         type="datetime"
-        value-format="yyyy-MM-ddTHH:mm:ss"
+        value-format="yyyy-MM-dd'T'HH:mm:ss"
         clearable
         placeholder="开始时间"
         style="width: 200px"
@@ -83,7 +83,7 @@ const maxByHour = computed(() => Math.max(1, ...(statisticsData.value?.by_hour |
       <NDatePicker
         v-model:formatted-value="filters.to_time"
         type="datetime"
-        value-format="yyyy-MM-ddTHH:mm:ss"
+        value-format="yyyy-MM-dd'T'HH:mm:ss"
         clearable
         placeholder="结束时间"
         style="width: 200px"
